@@ -29,9 +29,20 @@ const ChartContainer = React.forwardRef<
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`
 
   return (
-    <div data-chart={chartId} ref={ref} className={cn("flex aspect-video justify-center text-xs", className)} {...props}>
+    <div
+      data-chart={chartId}
+      ref={ref}
+      className={cn("flex w-full min-w-0 min-h-[220px] aspect-video justify-center text-xs", className)}
+    >
       <ChartStyle id={chartId} config={config} />
-      <RechartsPrimitive.ResponsiveContainer>
+      <RechartsPrimitive.ResponsiveContainer
+        width={props.width ?? "100%"}
+        height={props.height ?? "100%"}
+        minWidth={props.minWidth ?? 0}
+        minHeight={props.minHeight ?? 220}
+        debounce={props.debounce ?? 50}
+        {...props}
+      >
         {children}
       </RechartsPrimitive.ResponsiveContainer>
     </div>
@@ -39,7 +50,11 @@ const ChartContainer = React.forwardRef<
 })
 ChartContainer.displayName = RechartsPrimitive.ResponsiveContainer.displayName
 
-const ChartStyle = ({ id, config }: { id: string; config: Record<string, any> }) => {
+const ChartStyle = ({ id, config }: { id: string; config?: Record<string, any> }) => {
+  if (!config) {
+    return null
+  }
+
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color)
 
   if (!colorConfig.length) {
@@ -83,7 +98,7 @@ const ChartTooltipContent = React.forwardRef<
       label?: string
       labelFormatter?: (label: any, payload: any[]) => React.ReactNode
       formatter?: (value: any, name: string, item: any, index: number, payload: any) => React.ReactNode
-      indicator?: "line" | "dot" | "dashed"
+      indicator?: "line" | "dot" | "dashed" | "none"
       hideLabel?: boolean
       hideIndicator?: boolean
       labelClassName?: string
@@ -213,8 +228,9 @@ const ChartLegend = RechartsPrimitive.Legend
 
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+  React.ComponentProps<"div"> & {
+      payload?: Array<any>
+      verticalAlign?: "top" | "middle" | "bottom"
       hideIcon?: boolean
       nameKey?: string
     }

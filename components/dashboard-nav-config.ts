@@ -86,9 +86,9 @@ export const dashboardNavItems: DashboardNavItem[] = [
     url: "#",
     icon: Command,
     items: [
-      { title: "Registrar Justificacion", url: "/dashboard/marcaciones/justificacion", moduleCode: "JUSTIFICACIONES" },
-      { title: "Autorizar Justificacion", url: "/dashboard/marcaciones/autorizar-justificacion", moduleCode: "AUTORIZAR_JUSTIFICACION" },
-      { title: "Descanso Medico", url: "/dashboard/marcaciones/justificacion/descanso-medico", moduleCode: "DESCANSO_MEDICO" },
+      { title: "Registrar Justificacion", url: "/dashboard/justificacion", moduleCode: "JUSTIFICACIONES" },
+      { title: "Autorizar Justificacion", url: "/dashboard/autorizar-justificacion", moduleCode: "AUTORIZAR_JUSTIFICACION" },
+      { title: "Descanso Medico", url: "/dashboard/descanso-medico", moduleCode: "DESCANSO_MEDICO" },
     ],
   },
 ]

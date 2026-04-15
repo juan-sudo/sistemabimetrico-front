@@ -10,6 +10,7 @@ const useUserStore = create(
       isAuthenticated: false,
       accessToken: null,
       refreshToken: null,
+      hasHydrated: false,
 
       setSession: ({ user, accessToken, refreshToken }) =>
         set({
@@ -32,10 +33,15 @@ const useUserStore = create(
           accessToken: null,
           refreshToken: null,
         }),
+
+      setHasHydrated: (hasHydrated) => set({ hasHydrated }),
     }),
     {
       name: "user-storage",
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated?.(true)
+      },
     }
   )
 );

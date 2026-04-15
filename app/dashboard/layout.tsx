@@ -1,13 +1,28 @@
+import dynamic from "next/dynamic"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AuthGuard } from "@/components/auth-guard"
-import { DashboardRecentSearch } from "@/components/dashboard-recent-search"
-import { NotificationsMenu } from "@/components/notifications-menu"
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { ThemeToggleButton } from "@/components/theme-toggle"
+
+const DashboardRecentSearch = dynamic(
+  () => import("@/components/dashboard-recent-search").then((mod) => mod.DashboardRecentSearch),
+  {
+    ssr: false,
+    loading: () => <div className="hidden h-10 w-full max-w-xl rounded-lg border border-slate-200 bg-white md:block" />,
+  }
+)
+
+const NotificationsMenu = dynamic(
+  () => import("@/components/notifications-menu").then((mod) => mod.NotificationsMenu),
+  {
+    ssr: false,
+    loading: () => <div className="h-9 w-9 rounded-lg border border-slate-200 bg-white" />,
+  }
+)
 
 export default function DashboardLayout({
   children,

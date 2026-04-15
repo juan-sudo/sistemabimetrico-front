@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -52,10 +53,13 @@ export function LoginForm({ className, ...props }: { className?: string; [key: s
           </form>
 
           <div className="relative hidden md:block">
-            <img
+            <Image
               src="/muni.jpg"
-              alt="Imagen"
-              className="absolute inset-0 h-full w-full object-cover"
+              alt="Municipalidad"
+              fill
+              priority
+              sizes="(min-width: 768px) 50vw, 100vw"
+              className="object-cover"
             />
           </div>
         </CardContent>
