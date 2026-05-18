@@ -26,6 +26,10 @@ export type Justificacion = {
   nombre_documento: string
   estado: "AUTORIZADO" | "NO_AUTORIZADO" | "PENDIENTE"
   motivo_no_autorizacion: string
+  personal_nombres_completos?: string
+  personal_numero_documento?: string
+  sucursal_nombre?: string
+  area_nombre?: string
 }
 
 export type JustificacionForm = {
@@ -39,4 +43,11 @@ export type JustificacionForm = {
   tiene_adjunto: boolean
   numero_documento: string
   nombre_documento: string
+}
+
+export type PaginatedResponse<T> = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
 }

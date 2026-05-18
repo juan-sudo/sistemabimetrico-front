@@ -1,43 +1,80 @@
-﻿"use client"
+"use client"
 
-import { FormEvent, useEffect, useMemo, useState } from "react"
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import useUserStore from "@/stores/useUserStore"
 import type { FormState, TipoTrabajador } from "../interfaces/tipotrabajador.interface"
-import { createTipoTrabajador, deleteTipoTrabajador, fetchTiposTrabajador, updateTipoTrabajador } from "../services/tipotrabajador.service"
-import { asArray, buildTiposTrabajadorCsv, downloadCsv, emptyForm, filterTiposTrabajador } from "../utils/tipotrabajador.utils"
+import {
+  createTipoTrabajador,
+  deleteTipoTrabajador,
+  fetchTiposTrabajador,
+  updateTipoTrabajador,
+} from "../services/tipotrabajador.service"
+import { buildTiposTrabajadorCsv, downloadCsv, emptyForm } from "../utils/tipotrabajador.utils"
+
+const PAGE_SIZE = 20
+const SEARCH_DEBOUNCE_MS = 350
 
 export function useTipoTrabajadorPage() {
   const token = useUserStore((s) => s.accessToken)
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [estadoFilter, setEstadoFilter] = useState("")
+  const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
   const [detail, setDetail] = useState<TipoTrabajador | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [items, setItems] = useState<TipoTrabajador[]>([])
+  const [totalItems, setTotalItems] = useState(0)
   const [form, setForm] = useState<FormState>(emptyForm)
 
-  useEffect(() => {
-    const load = async () => {
-      if (!token) {
-        setLoading(false)
-        return
-      }
-      try {
-        const data = await fetchTiposTrabajador(token)
-        setItems(asArray(data) as TipoTrabajador[])
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "No se pudo cargar tipos de trabajador")
-      } finally {
-        setLoading(false)
-      }
+  const loadTipos = useCallback(async () => {
+    if (!token) {
+      setLoading(false)
+      setInitialLoading(false)
+      return
     }
-    void load()
-  }, [token])
+    try {
+      setLoading(true)
+      setIsFetching(true)
+      const data = await fetchTiposTrabajador(token, {
+        page,
+        pageSize: PAGE_SIZE,
+        search: debouncedSearch,
+        estado: estadoFilter,
+      })
+      setItems(data.results)
+      setTotalItems(data.count)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo cargar tipos de trabajador")
+    } finally {
+      setLoading(false)
+      setInitialLoading(false)
+      setIsFetching(false)
+    }
+  }, [debouncedSearch, estadoFilter, page, token])
 
-  const filteredRows = useMemo(() => filterTiposTrabajador(items, search, estadoFilter), [items, search, estadoFilter])
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setPage(1)
+      setDebouncedSearch(search.trim())
+    }, SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timeoutId)
+  }, [search])
+
+  useEffect(() => {
+    setPage(1)
+  }, [estadoFilter])
+
+  useEffect(() => {
+    void loadTipos()
+  }, [loadTipos])
+
+  const filteredRows = items
 
   const resetForm = () => {
     setEditingId(null)
@@ -57,15 +94,14 @@ export function useTipoTrabajadorPage() {
     try {
       setSaving(true)
       if (editingId) {
-        const updated = (await updateTipoTrabajador(editingId, token, payload)) as TipoTrabajador
-        setItems((prev) => prev.map((x) => (x.id === editingId ? updated : x)))
+        const updated = await updateTipoTrabajador(editingId, token, payload)
         setDetail((prev) => (prev?.id === editingId ? updated : prev))
         toast.success("Tipo de trabajador actualizado")
       } else {
-        const created = (await createTipoTrabajador(token, payload)) as TipoTrabajador
-        setItems((prev) => [created, ...prev])
+        await createTipoTrabajador(token, payload)
         toast.success("Tipo de trabajador creado")
       }
+      await loadTipos()
       setOpen(false)
       resetForm()
     } catch (err) {
@@ -89,8 +125,8 @@ export function useTipoTrabajadorPage() {
     if (!token || !window.confirm(`Eliminar tipo "${item.descripcion}"?`)) return
     try {
       await deleteTipoTrabajador(item.id, token)
-      setItems((prev) => prev.filter((x) => x.id !== item.id))
       setDetail((prev) => (prev?.id === item.id ? null : prev))
+      await loadTipos()
       toast.success("Tipo de trabajador eliminado")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo eliminar")
@@ -102,17 +138,29 @@ export function useTipoTrabajadorPage() {
     downloadCsv("tipos-trabajador.csv", lines)
   }
 
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(totalItems / PAGE_SIZE)), [totalItems])
+  const canPrev = page > 1
+  const canNext = page < totalPages
+
   return {
     token,
     search,
     setSearch,
     estadoFilter,
     setEstadoFilter,
+    page,
+    setPage,
+    totalItems,
+    totalPages,
+    canPrev,
+    canNext,
     open,
     setOpen,
     detail,
     setDetail,
     loading,
+    initialLoading,
+    isFetching,
     saving,
     editingId,
     form,

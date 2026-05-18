@@ -18,3 +18,12 @@ export type PersonalBoleta = {
   tipoTrabajador: string
   sueldoBase: number
 }
+
+export type BoletaMensualInitialData = {
+  month: string
+  year: string
+  personales: Personal[]
+  areas: Area[]
+  tiposTrabajador: TipoTrabajador[]
+  boletas: Boleta[]
+}

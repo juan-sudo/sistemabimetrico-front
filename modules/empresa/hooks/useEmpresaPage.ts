@@ -3,68 +3,75 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import useUserStore from "@/stores/useUserStore"
-import type { Empresa, EmpresaFormState } from "../interfaces/empresa.interface"
+import type { Empresa, EmpresaFormState, EmpresaListResponse } from "../interfaces/empresa.interface"
 import { createEmpresa, deleteEmpresa, fetchEmpresas, updateEmpresa } from "../services/empresa.service"
 import { emptyEmpresaForm, toEmpresaPayload } from "../utils/empresa.utils"
 
-type EmpresaListResponse = {
-  count?: number
-  next?: string | null
-  previous?: string | null
-  results?: Empresa[]
-}
+const PAGE_SIZE = 20
+const SEARCH_DEBOUNCE_MS = 350
 
-const PAGE_SIZE = 25
-
-export function useEmpresaPage() {
+export function useEmpresaPage(initialData?: EmpresaListResponse | null) {
   const token = useUserStore((s) => s.accessToken)
 
-  const [items, setItems] = useState<Empresa[]>([])
-  const [totalItems, setTotalItems] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [items, setItems] = useState<Empresa[]>(initialData?.results ?? [])
+  const [totalItems, setTotalItems] = useState(initialData?.count ?? 0)
+  const [loading, setLoading] = useState(!initialData)
+  const [initialLoading, setInitialLoading] = useState(!initialData)
+  const [isFetching, setIsFetching] = useState(false)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<EmpresaFormState>(emptyEmpresaForm)
+  const [hasConsumedInitialData, setHasConsumedInitialData] = useState(Boolean(initialData))
 
   const loadEmpresas = useCallback(async () => {
     if (!token) {
       setLoading(false)
+      setInitialLoading(false)
       return
     }
 
     try {
       setLoading(true)
-      const data = (await fetchEmpresas(token, {
+      setIsFetching(true)
+      const data = await fetchEmpresas(token, {
         page,
         pageSize: PAGE_SIZE,
-        search,
-      })) as EmpresaListResponse | Empresa[]
-
-      if (Array.isArray(data)) {
-        setItems(data)
-        setTotalItems(data.length)
-        return
-      }
-
-      const rows = Array.isArray(data.results) ? data.results : []
-      setItems(rows)
-      setTotalItems(typeof data.count === "number" ? data.count : rows.length)
+        search: debouncedSearch,
+      })
+      setItems(data.results)
+      setTotalItems(data.count)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo cargar empresas")
     } finally {
       setLoading(false)
+      setInitialLoading(false)
+      setIsFetching(false)
     }
-  }, [page, search, token])
+  }, [debouncedSearch, page, token])
 
   useEffect(() => {
+    if (hasConsumedInitialData && page === 1 && !debouncedSearch.trim()) {
+      setHasConsumedInitialData(false)
+      setLoading(false)
+      setInitialLoading(false)
+      return
+    }
     void loadEmpresas()
-  }, [loadEmpresas])
-
+  }, [debouncedSearch, hasConsumedInitialData, loadEmpresas, page])
+  
   useEffect(() => {
-    setPage(1)
+    const timeoutId = window.setTimeout(() => {
+      setPage(1)
+      setDebouncedSearch(search.trim())
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
   }, [search])
 
   const resetForm = () => {
@@ -129,6 +136,8 @@ export function useEmpresaPage() {
     items,
     totalItems,
     loading,
+    initialLoading,
+    isFetching,
     saving,
     search,
     setSearch,

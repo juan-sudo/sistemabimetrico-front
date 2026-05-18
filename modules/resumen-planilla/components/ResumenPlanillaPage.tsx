@@ -35,20 +35,8 @@ export default function ResumenPlanillaPage() {
   if (!token) return <section className="p-6 text-sm text-slate-600">Inicia sesion para continuar.</section>
 
   return (
-    <section className="min-h-[calc(100vh-7rem)] bg-[radial-gradient(circle_at_top_right,#dcfce7_0%,#f8fafc_45%,#eef2ff_100%)] p-3 md:p-6">
-      <div className="mx-auto w-full max-w-7xl space-y-5">
-        <header className="rounded-2xl border border-white/50 bg-white/80 p-5 shadow-lg backdrop-blur md:p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-700">
-                <FileText size={22} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-slate-800 md:text-3xl">Resumen</h1>
-                <p className="text-sm text-slate-500">Consulta el consolidado mensual de un trabajador para generar su boleta.</p>
-              </div>
-            </div>
-            <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+    <>
+      <div className="flex flex-wrap justify-end gap-2 rounded-2xl border border-white/50 bg-white/80 px-5 py-3 shadow-sm backdrop-blur">
               <Button
                 type="button"
                 variant="outline"
@@ -70,8 +58,6 @@ export default function ResumenPlanillaPage() {
                 Descargar Excel
               </Button>
             </div>
-          </div>
-        </header>
 
         <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-4">
           <div className="space-y-1 md:col-span-2">
@@ -252,8 +238,7 @@ export default function ResumenPlanillaPage() {
             </div>
           </>
         )}
-      </div>
-    </section>
+    </>
   )
 }
 

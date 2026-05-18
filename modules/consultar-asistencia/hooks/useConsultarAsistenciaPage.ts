@@ -1,18 +1,24 @@
-﻿"use client"
+"use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import useUserStore from "@/stores/useUserStore"
 import type { Area, Marcacion, Personal, PersonalTurno, Turno, TurnoBloque } from "../interfaces/consultar-asistencia.interface"
 import {
   fetchAreas,
-  fetchMarcaciones,
-  fetchPersonales,
+  fetchJustificacionesRange,
+  fetchMarcacionesPage,
+  fetchPersonalesPage,
   fetchPersonalTurnos,
   fetchTurnoBloques,
   fetchTurnos,
 } from "../services/consultar-asistencia.service"
 import { asArray, buildExportRows, buildRows, exportHeaders, formatInputDate, formatShortDate } from "../utils/consultar-asistencia.utils"
+import type { JustificacionLite } from "../interfaces/consultar-asistencia.interface"
+
+const PAGE_SIZE = 100
+const PERSONAL_MODAL_PAGE_SIZE = 20
+const SEARCH_DEBOUNCE_MS = 300
 
 export function useConsultarAsistenciaPage() {
   const token = useUserStore((s) => s.accessToken)
@@ -20,92 +26,189 @@ export function useConsultarAsistenciaPage() {
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
 
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
   const [fechaInicio, setFechaInicio] = useState(formatInputDate(firstDayOfMonth))
   const [fechaFin, setFechaFin] = useState(formatInputDate(today))
   const [selectedPersonalId, setSelectedPersonalId] = useState<number | null>(null)
+  const [selectedPersonal, setSelectedPersonal] = useState<Personal | null>(null)
   const [isPersonalModalOpen, setIsPersonalModalOpen] = useState(false)
   const [personalSearch, setPersonalSearch] = useState("")
+  const [debouncedPersonalSearch, setDebouncedPersonalSearch] = useState("")
 
-  const [personales, setPersonales] = useState<Personal[]>([])
-  const [areas, setAreas] = useState<Area[]>([])
+  const [modalPersonales, setModalPersonales] = useState<Personal[]>([])
+  const [modalPage, setModalPage] = useState(1)
+  const [modalTotalItems, setModalTotalItems] = useState(0)
+  const [modalLoading, setModalLoading] = useState(false)
+
   const [marcaciones, setMarcaciones] = useState<Marcacion[]>([])
+  const [page, setPage] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
+
+  const [areas, setAreas] = useState<Area[]>([])
   const [asignaciones, setAsignaciones] = useState<PersonalTurno[]>([])
   const [turnos, setTurnos] = useState<Turno[]>([])
   const [bloques, setBloques] = useState<TurnoBloque[]>([])
+  const [justificaciones, setJustificaciones] = useState<JustificacionLite[]>([])
+
+  const requestIdRef = useRef(0)
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setModalPage(1)
+      setDebouncedPersonalSearch(personalSearch.trim())
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [personalSearch])
+
+  useEffect(() => {
+    setPage(1)
+  }, [fechaInicio, fechaFin, selectedPersonalId])
 
   useEffect(() => {
     const loadBaseData = async () => {
-      if (!token) return
+      if (!token) {
+        setInitialLoading(false)
+        return
+      }
       try {
-        const [p, a, pt, t, b] = await Promise.all([
-          fetchPersonales(token),
+        const [a, pt, t, b] = await Promise.all([
           fetchAreas(token),
           fetchPersonalTurnos(token),
           fetchTurnos(token),
           fetchTurnoBloques(token),
         ])
-        setPersonales(asArray(p) as Personal[])
         setAreas(asArray(a) as Area[])
         setAsignaciones(asArray(pt) as PersonalTurno[])
         setTurnos(asArray(t) as Turno[])
         setBloques(asArray(b) as TurnoBloque[])
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "No se pudo cargar datos base")
+      } finally {
+        setInitialLoading(false)
       }
     }
     void loadBaseData()
   }, [token])
 
   useEffect(() => {
+    if (!token || !isPersonalModalOpen) return
+
+    const loadModalPersonales = async () => {
+      try {
+        setModalLoading(true)
+        const response = await fetchPersonalesPage(token, {
+          page: modalPage,
+          pageSize: PERSONAL_MODAL_PAGE_SIZE,
+          search: debouncedPersonalSearch,
+        })
+        setModalPersonales(response.results)
+        setModalTotalItems(response.count)
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo cargar trabajadores")
+      } finally {
+        setModalLoading(false)
+      }
+    }
+
+    void loadModalPersonales()
+  }, [token, isPersonalModalOpen, modalPage, debouncedPersonalSearch])
+
+  useEffect(() => {
     const loadMarcacionesData = async () => {
       if (!token) return
       if (!fechaInicio || !fechaFin || fechaInicio > fechaFin) {
         setMarcaciones([])
+        setTotalItems(0)
         return
       }
 
+      const requestId = requestIdRef.current + 1
+      requestIdRef.current = requestId
+
       setLoading(true)
+      setIsFetching(true)
       try {
-        const response = await fetchMarcaciones(token, fechaInicio, fechaFin, selectedPersonalId)
-        setMarcaciones(asArray(response) as Marcacion[])
+        const response = await fetchMarcacionesPage(token, {
+          page,
+          pageSize: PAGE_SIZE,
+          fechaInicio,
+          fechaFin,
+          personalId: selectedPersonalId,
+        })
+
+        if (requestIdRef.current !== requestId) return
+        setMarcaciones(response.results)
+        setTotalItems(response.count)
       } catch (err) {
+        if (requestIdRef.current !== requestId) return
         toast.error(err instanceof Error ? err.message : "No se pudo cargar marcaciones")
       } finally {
-        setLoading(false)
+        if (requestIdRef.current === requestId) {
+          setLoading(false)
+          setIsFetching(false)
+        }
       }
     }
     void loadMarcacionesData()
+  }, [token, fechaInicio, fechaFin, selectedPersonalId, page])
+
+  useEffect(() => {
+    const loadJustificaciones = async () => {
+      if (!token) return
+      if (!fechaInicio || !fechaFin || fechaInicio > fechaFin) {
+        setJustificaciones([])
+        return
+      }
+      try {
+        const rows = await fetchJustificacionesRange(token, {
+          fechaInicio,
+          fechaFin,
+          personalId: selectedPersonalId,
+        })
+        setJustificaciones(rows)
+      } catch (err) {
+        // No bloquear el módulo si falla este extra
+        toast.error(err instanceof Error ? err.message : "No se pudo cargar justificaciones para el periodo")
+      }
+    }
+    void loadJustificaciones()
   }, [token, fechaInicio, fechaFin, selectedPersonalId])
 
   const rows = useMemo(
     () =>
       buildRows({
         marcaciones,
-        personales,
+        personales: selectedPersonal ? [selectedPersonal] : [],
         areas,
         asignaciones,
         turnos,
         bloques,
+        justificaciones,
       }),
-    [marcaciones, personales, areas, asignaciones, turnos, bloques]
-  )
-
-  const selectedPersonal = useMemo(
-    () => (selectedPersonalId ? personales.find((item) => item.id === selectedPersonalId) || null : null),
-    [personales, selectedPersonalId]
+    [marcaciones, selectedPersonal, areas, asignaciones, turnos, bloques, justificaciones]
   )
 
   const selectedLabel = selectedPersonal
     ? `${selectedPersonal.numero_documento} - ${selectedPersonal.nombres_completos}`
     : "Todos los trabajadores"
 
-  const modalPersonales = useMemo(() => {
-    const term = personalSearch.trim().toLowerCase()
-    if (!term) return personales
-    return personales.filter((item) => `${item.numero_documento} ${item.nombres_completos}`.toLowerCase().includes(term))
-  }, [personales, personalSearch])
-
   const exportRows = useMemo(() => buildExportRows(rows), [rows])
+
+  const handleSelectPersonal = (personal: Personal) => {
+    setSelectedPersonalId(personal.id)
+    setSelectedPersonal(personal)
+    setIsPersonalModalOpen(false)
+  }
+
+  const handleClearPersonal = () => {
+    setSelectedPersonalId(null)
+    setSelectedPersonal(null)
+    setIsPersonalModalOpen(false)
+  }
 
   const handleExportExcel = () => {
     const lines = [
@@ -116,7 +219,7 @@ export function useConsultarAsistenciaPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `consultar-asistencia-${fechaInicio}-${fechaFin}.csv`
+    a.download = `consultar-asistencia-${fechaInicio}-${fechaFin}-pag-${page}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -141,7 +244,7 @@ export function useConsultarAsistenciaPage() {
         </head>
         <body>
           <h1>Consultar asistencia</h1>
-          <p>Periodo: ${fechaInicio} a ${fechaFin} | Registros: ${exportRows.length}</p>
+          <p>Periodo: ${fechaInicio} a ${fechaFin} | Pagina: ${page} | Registros: ${exportRows.length}</p>
           <table>
             <thead><tr>${exportHeaders.map((item) => `<th>${item}</th>`).join("")}</tr></thead>
             <tbody>${htmlRows}</tbody>
@@ -165,7 +268,9 @@ export function useConsultarAsistenciaPage() {
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
         trabajador: selectedLabel,
-        total_registros: rows.length,
+        pagina: page,
+        total_registros_pagina: rows.length,
+        total_registros: totalItems,
       },
       registros: rows,
     }
@@ -174,14 +279,24 @@ export function useConsultarAsistenciaPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `consultar-asistencia-raw-${fechaInicio}-${fechaFin}.json`
+    a.download = `consultar-asistencia-raw-${fechaInicio}-${fechaFin}-pag-${page}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
 
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
+  const canPrev = page > 1
+  const canNext = page < totalPages
+
+  const modalTotalPages = Math.max(1, Math.ceil(modalTotalItems / PERSONAL_MODAL_PAGE_SIZE))
+  const modalCanPrev = modalPage > 1
+  const modalCanNext = modalPage < modalTotalPages
+
   return {
     token,
     loading,
+    initialLoading,
+    isFetching,
     fechaInicio,
     setFechaInicio,
     fechaFin,
@@ -195,8 +310,22 @@ export function useConsultarAsistenciaPage() {
     selectedLabel,
     rows,
     modalPersonales,
+    modalLoading,
+    modalPage,
+    setModalPage,
+    modalTotalPages,
+    modalCanPrev,
+    modalCanNext,
+    totalItems,
+    page,
+    setPage,
+    totalPages,
+    canPrev,
+    canNext,
     exportHeaders,
     formatShortDate,
+    handleSelectPersonal,
+    handleClearPersonal,
     handleExportExcel,
     handleExportPdf,
     handleExportRawJson,

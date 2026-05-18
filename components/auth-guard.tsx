@@ -16,13 +16,5 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [hasHydrated, isAuthenticated, pathname, router])
 
-  if (!hasHydrated) {
-    return null
-  }
-
-  if (!isAuthenticated) {
-    return null
-  }
-
   return <>{children}</>
 }

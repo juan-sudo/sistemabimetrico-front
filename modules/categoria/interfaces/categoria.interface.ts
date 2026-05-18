@@ -22,3 +22,10 @@ export type CategoriaPayload = {
   dias_por_periodo: number
   activo: boolean
 }
+
+export type CategoriaListResponse = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: Categoria[]
+}

@@ -1,17 +1,57 @@
 import { apiEndpoints, authRequest } from "@/lib/api-client"
+import type { Marcacion } from "../interfaces/marcaciones.interface"
 
-const CACHE_STATIC_MS = 5 * 60 * 1000
-const CACHE_DYNAMIC_MS = 30 * 1000
+interface GetMarcacionesParams {
+  token: string
+  page?: number
+  busqueda?: string
+}
 
-export async function fetchMarcacionesBaseData(token: string): Promise<[unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown]> {
-  return Promise.all([
-    authRequest(apiEndpoints.personales, { token, cacheMs: CACHE_DYNAMIC_MS }),
-    authRequest(apiEndpoints.empresas, { token, cacheMs: CACHE_STATIC_MS }),
-    authRequest(apiEndpoints.sucursales, { token, cacheMs: CACHE_STATIC_MS }),
-    authRequest(apiEndpoints.areas, { token, cacheMs: CACHE_STATIC_MS }),
-    authRequest(apiEndpoints.tiposDocumento, { token, cacheMs: CACHE_STATIC_MS }),
-    authRequest(apiEndpoints.tiposTrabajador, { token, cacheMs: CACHE_STATIC_MS }),
-    authRequest(apiEndpoints.categorias, { token, cacheMs: CACHE_STATIC_MS }),
-    authRequest(apiEndpoints.tiposSindicato, { token, cacheMs: CACHE_STATIC_MS }),
-  ])
+type MarcacionesApiResponse = {
+  count?: number
+  results?: Marcacion[]
+}
+
+interface MarcacionesPaginatedResponse {
+  marcaciones: Marcacion[]
+  totalItems: number
+  totalPages: number
+}
+
+const PAGE_SIZE = 20
+
+export const getMarcaciones = async ({
+  token,
+  page = 1,
+  busqueda = "",
+}: GetMarcacionesParams): Promise<MarcacionesPaginatedResponse> => {
+  const params = new URLSearchParams()
+  params.append("paginated", "1")
+  params.append("lite", "1")
+  params.append("page", String(page))
+  params.append("page_size", String(PAGE_SIZE))
+  if (busqueda) {
+    params.append("search", busqueda)
+  }
+
+  const data = (await authRequest(`${apiEndpoints.marcaciones}?${params.toString()}`, {
+    token,
+  })) as MarcacionesApiResponse | Marcacion[]
+
+  if (Array.isArray(data)) {
+    return {
+      marcaciones: data,
+      totalItems: data.length,
+      totalPages: 1,
+    }
+  }
+
+  const marcaciones = Array.isArray(data.results) ? data.results : []
+  const totalItems = typeof data.count === "number" ? data.count : marcaciones.length
+
+  return {
+    marcaciones,
+    totalItems,
+    totalPages: totalItems > 0 ? Math.max(1, Math.ceil(totalItems / PAGE_SIZE)) : 1,
+  }
 }

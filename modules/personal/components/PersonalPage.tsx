@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { Eye, Pencil, PlusCircle, Search, Trash2, UsersRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,8 @@ export default function PersonalPage() {
     setDetail,
     saving,
     loading,
+    initialLoading,
+    isFetching,
     form,
     setForm,
     empresaFilter,
@@ -32,8 +34,6 @@ export default function PersonalPage() {
     empresas,
     sucursales,
     areas,
-    ubicaciones,
-    tiposDoc,
     tiposTrab,
     categorias,
     tiposSind,
@@ -56,18 +56,9 @@ export default function PersonalPage() {
   if (!token) return <section className="p-6 text-sm text-slate-600">Inicia sesion para continuar.</section>
 
   return (
-    <section className="min-h-[calc(100vh-7rem)] bg-[radial-gradient(circle_at_top_right,#dcfce7_0%,#f8fafc_45%,#eef2ff_100%)] p-3 md:p-6">
-      <div className="mx-auto w-full max-w-7xl space-y-5">
-        <header className="rounded-2xl border border-white/50 bg-white/80 p-5 shadow-lg backdrop-blur md:p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-700"><UsersRound size={22} /></div>
-              <div>
-                <h1 className="text-2xl font-semibold text-slate-800 md:text-3xl">Mantenimiento de Personal</h1>
-                <p className="text-sm text-slate-500">Completa datos laborales, contacto, cargo y ubicacion geografica.</p>
-              </div>
-            </div>
-            <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) resetForm() }}>
+    <>
+      <div className="flex flex-wrap justify-end gap-2 rounded-2xl border border-white/50 bg-white/80 px-5 py-3 shadow-sm backdrop-blur">
+        <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) resetForm() }}>
               <DialogTrigger asChild>
                 <button onClick={() => { resetForm(); setOpen(true) }} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white">
                   <PlusCircle size={16} /> Nuevo personal
@@ -81,12 +72,15 @@ export default function PersonalPage() {
                   <Input required placeholder="Nombres completos" value={form.nombres_completos} onChange={(e) => setForm((p) => ({ ...p, nombres_completos: e.target.value }))} />
                   <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={form.empresa} onChange={(e) => setForm((p) => ({ ...p, empresa: e.target.value }))}>{empresas.map((x) => <option key={x.id} value={x.id}>{x.razon_social}</option>)}</select>
                   <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={form.sucursal} onChange={(e) => setForm((p) => ({ ...p, sucursal: e.target.value }))}>{formSucursales.map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select>
-                  <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={form.area} onChange={(e) => setForm((p) => ({ ...p, area: e.target.value }))}>{formAreas.map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select>
-                  <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={form.tipo_documento} onChange={(e) => setForm((p) => ({ ...p, tipo_documento: e.target.value }))}><option value="" disabled>Tipo documento</option>{tiposDoc.map((x) => <option key={x.id} value={x.id}>{x.descripcion}</option>)}</select>
+                  <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={form.tipo_documento} onChange={(e) => setForm((p) => ({ ...p, tipo_documento: e.target.value }))}>
+                    <option value="" disabled>Tipo documento</option>
+                    <option value="DNI">DNI</option>
+                    <option value="CARNET">CARNET</option>
+                  </select>
                   <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={form.tipo_trabajador} onChange={(e) => setForm((p) => ({ ...p, tipo_trabajador: e.target.value }))}><option value="" disabled>Tipo trabajador</option>{tiposTrab.map((x) => <option key={x.id} value={x.id}>{x.descripcion}</option>)}</select>
                   <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={form.categoria} onChange={(e) => setForm((p) => ({ ...p, categoria: e.target.value }))}><option value="" disabled>Categoria</option>{categorias.map((x) => <option key={x.id} value={x.id}>{x.descripcion}</option>)}</select>
                   <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={form.cargo} onChange={(e) => setForm((p) => ({ ...p, cargo: e.target.value }))}><option value="">Sin cargo</option>{cargos.map((x) => <option key={x.id} value={x.id}>{x.descripcion}</option>)}</select>
-                  <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={form.ubicacion} onChange={(e) => setForm((p) => ({ ...p, ubicacion: e.target.value }))}><option value="">Sin ubicacion</option>{ubicaciones.map((x) => <option key={x.id} value={x.id}>{x.descripcion || x.nombre}</option>)}</select>
+                  <Input placeholder="Direccion" value={form.direccion} onChange={(e) => setForm((p) => ({ ...p, direccion: e.target.value }))} />
                   <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={form.tipo_sindicato} onChange={(e) => setForm((p) => ({ ...p, tipo_sindicato: e.target.value }))}><option value="">Sin sindicato</option>{tiposSind.map((x) => <option key={x.id} value={x.id}>{x.descripcion}</option>)}</select>
                   <Input type="email" placeholder="Correo" value={form.correo} onChange={(e) => setForm((p) => ({ ...p, correo: e.target.value }))} />
                   <Input placeholder="Telefono" value={form.telefono} onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))} />
@@ -100,7 +94,6 @@ export default function PersonalPage() {
               </DialogContent>
             </Dialog>
           </div>
-        </header>
 
         <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-5">
           <div className="relative md:col-span-2">
@@ -111,6 +104,7 @@ export default function PersonalPage() {
           <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={sucursalFilter} onChange={(e) => { setSucursalFilter(e.target.value); setAreaFilter("") }}><option value="">Todas las sucursales</option>{sucursales.filter((x) => !empresaFilter || String(x.empresa) === empresaFilter).map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select>
           <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)}><option value="">Todas las areas</option>{areas.filter((x) => !sucursalFilter || String(x.sucursal) === sucursalFilter).map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select>
           <select className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm md:col-start-5" value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value)}><option value="">Todos los estados</option><option value="ACTIVO">Activos</option><option value="INACTIVO">Inactivos</option></select>
+          <div className="text-right text-sm text-slate-600 md:col-span-5">{isFetching ? "Actualizando..." : `Registros: ${totalItems}`}</div>
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -152,7 +146,7 @@ export default function PersonalPage() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div><b>Nombre:</b> {detail.nombres_completos}</div>
                   <div><b>Codigo:</b> {detail.codigo_empleado}</div>
-                  <div><b>Documento:</b> {detail.tipo_documento_nombre || "Documento"} {detail.numero_documento}</div>
+                  <div><b>Documento:</b> {detail.tipo_documento || "Documento"} {detail.numero_documento}</div>
                   <div><b>Estado:</b> {detail.estado === "ACTIVO" ? "Activo" : "Inactivo"}</div>
                   <div><b>Fecha ingreso:</b> {detail.fecha_ingreso || "-"}</div>
                 </div>
@@ -161,7 +155,7 @@ export default function PersonalPage() {
                   <div><b>Sucursal:</b> {detail.sucursal_nombre || "-"}</div>
                   <div><b>Area:</b> {detail.area_nombre || "-"}</div>
                   <div><b>Cargo:</b> {detail.cargo_nombre || "-"}</div>
-                  <div><b>Ubicacion:</b> {detail.ubicacion_nombre || "-"}</div>
+                  <div><b>Direccion:</b> {detail.direccion || "-"}</div>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div><b>Tipo trabajador:</b> {detail.tipo_trabajador_nombre || "-"}</div>
@@ -179,7 +173,7 @@ export default function PersonalPage() {
         </Dialog>
 
         <div className="flex items-center justify-between">
-          <p className="px-1 text-sm font-semibold text-slate-600">Registros: {totalItems}</p>
+          <p className="px-1 text-sm font-semibold text-slate-600">{initialLoading ? "Cargando..." : `Registros: ${totalItems}`}</p>
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-600">Pagina {page} de {totalPages}</span>
             <Button type="button" variant="outline" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={!canPrev || loading}>
@@ -190,7 +184,6 @@ export default function PersonalPage() {
             </Button>
           </div>
         </div>
-      </div>
-    </section>
+    </>
   )
 }

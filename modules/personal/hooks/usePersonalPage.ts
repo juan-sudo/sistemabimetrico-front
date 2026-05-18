@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useEffect, useMemo, useState } from "react"
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import useUserStore from "@/stores/useUserStore"
 import type { Catalog, FormState, Personal } from "../interfaces/personal.interface"
@@ -13,18 +13,23 @@ type PaginatedResponse<T> = {
 }
 
 const PAGE_SIZE = 25
+const SEARCH_DEBOUNCE_MS = 350
 
 export function usePersonalPage() {
   const token = useUserStore((s) => s.accessToken)
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [detail, setDetail] = useState<Personal | null>(null)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
   const [items, setItems] = useState<Personal[]>([])
   const [totalItems, setTotalItems] = useState(0)
   const [page, setPage] = useState(1)
+  const rowsRequestIdRef = useRef(0)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [empresaFilter, setEmpresaFilter] = useState("")
   const [sucursalFilter, setSucursalFilter] = useState("")
@@ -34,8 +39,6 @@ export function usePersonalPage() {
   const [empresas, setEmpresas] = useState<Catalog[]>([])
   const [sucursales, setSucursales] = useState<Catalog[]>([])
   const [areas, setAreas] = useState<Catalog[]>([])
-  const [ubicaciones, setUbicaciones] = useState<Catalog[]>([])
-  const [tiposDoc, setTiposDoc] = useState<Catalog[]>([])
   const [tiposTrab, setTiposTrab] = useState<Catalog[]>([])
   const [categorias, setCategorias] = useState<Catalog[]>([])
   const [tiposSind, setTiposSind] = useState<Catalog[]>([])
@@ -63,25 +66,33 @@ export function usePersonalPage() {
   }, [form.area, formAreas])
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setPage(1)
+      setDebouncedSearch(search.trim())
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [search])
+
+  useEffect(() => {
     setPage(1)
-  }, [search, empresaFilter, sucursalFilter, areaFilter, estadoFilter])
+  }, [empresaFilter, sucursalFilter, areaFilter, estadoFilter])
 
   const loadCatalogs = async () => {
     if (!token) return
-    const [e, s, a, u, td, tt, c, ts, cg] = await fetchPersonalCatalogs(token)
+    const [e, s, a, tt, c, ts, cg] = await fetchPersonalCatalogs(token)
 
     const nextEmpresas = asArray(e) as Catalog[]
     const nextSucursales = asArray(s) as Catalog[]
     const nextAreas = asArray(a) as Catalog[]
-    const nextTiposDoc = asArray(td) as Catalog[]
     const nextTiposTrab = asArray(tt) as Catalog[]
     const nextCategorias = asArray(c) as Catalog[]
 
     setEmpresas(nextEmpresas)
     setSucursales(nextSucursales)
     setAreas(nextAreas)
-    setUbicaciones(asArray(u) as Catalog[])
-    setTiposDoc(nextTiposDoc)
     setTiposTrab(nextTiposTrab)
     setCategorias(nextCategorias)
     setTiposSind(asArray(ts) as Catalog[])
@@ -95,7 +106,6 @@ export function usePersonalPage() {
       empresa: prev.empresa || empresa,
       sucursal: prev.sucursal || (sucursal ? String(sucursal.id) : ""),
       area: prev.area || (area ? String(area.id) : ""),
-      tipo_documento: prev.tipo_documento || String(nextTiposDoc[0]?.id || ""),
       tipo_trabajador: prev.tipo_trabajador || String(nextTiposTrab[0]?.id || ""),
       categoria: prev.categoria || String(nextCategorias[0]?.id || ""),
     }))
@@ -106,7 +116,7 @@ export function usePersonalPage() {
     const response = (await fetchPersonalesPage(token, {
       page,
       pageSize: PAGE_SIZE,
-      search,
+      search: debouncedSearch,
       empresaFilter,
       sucursalFilter,
       areaFilter,
@@ -126,16 +136,13 @@ export function usePersonalPage() {
   useEffect(() => {
     const load = async () => {
       if (!token) {
-        setLoading(false)
+        setInitialLoading(false)
         return
       }
       try {
-        setLoading(true)
         await loadCatalogs()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "No se pudo cargar catalogos")
-      } finally {
-        setLoading(false)
       }
     }
     void load()
@@ -143,18 +150,29 @@ export function usePersonalPage() {
 
   useEffect(() => {
     const load = async () => {
-      if (!token) return
+      if (!token) {
+        setLoading(false)
+        setInitialLoading(false)
+        return
+      }
+      const requestId = rowsRequestIdRef.current + 1
+      rowsRequestIdRef.current = requestId
       try {
         setLoading(true)
+        setIsFetching(true)
         await loadRows()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "No se pudo cargar personal")
       } finally {
-        setLoading(false)
+        if (rowsRequestIdRef.current === requestId) {
+          setLoading(false)
+          setInitialLoading(false)
+          setIsFetching(false)
+        }
       }
     }
     void load()
-  }, [token, page, search, empresaFilter, sucursalFilter, areaFilter, estadoFilter])
+  }, [token, page, debouncedSearch, empresaFilter, sucursalFilter, areaFilter, estadoFilter])
 
   const resetForm = () => {
     setEditingId(null)
@@ -163,7 +181,6 @@ export function usePersonalPage() {
         empresas,
         sucursales,
         areas,
-        tiposDoc,
         tiposTrab,
         categorias,
       })
@@ -173,7 +190,13 @@ export function usePersonalPage() {
   const onSave = async (e: FormEvent) => {
     e.preventDefault()
     if (!token) return
-    if (!form.empresa || !form.sucursal || !form.area || !form.tipo_documento || !form.tipo_trabajador || !form.categoria) {
+    const resolvedArea = form.area || (formAreas[0] ? String(formAreas[0].id) : "")
+    if (!resolvedArea) {
+      toast.error("No hay areas disponibles para la sucursal seleccionada.")
+      return
+    }
+
+    if (!form.empresa || !form.sucursal || !form.tipo_documento || !form.tipo_trabajador || !form.categoria) {
       toast.error("Completa los campos obligatorios.")
       return
     }
@@ -181,9 +204,9 @@ export function usePersonalPage() {
     const payload = {
       empresa: Number(form.empresa),
       sucursal: Number(form.sucursal),
-      area: Number(form.area),
-      ubicacion: form.ubicacion ? Number(form.ubicacion) : null,
-      tipo_documento: Number(form.tipo_documento),
+      area: Number(resolvedArea),
+      direccion: form.direccion.trim(),
+      tipo_documento: form.tipo_documento.trim(),
       tipo_trabajador: Number(form.tipo_trabajador),
       categoria: Number(form.categoria),
       tipo_sindicato: form.tipo_sindicato ? Number(form.tipo_sindicato) : null,
@@ -223,8 +246,8 @@ export function usePersonalPage() {
       empresa: String(item.empresa),
       sucursal: String(item.sucursal),
       area: String(item.area),
-      ubicacion: item.ubicacion ? String(item.ubicacion) : "",
-      tipo_documento: String(item.tipo_documento),
+      direccion: item.direccion || "",
+      tipo_documento: item.tipo_documento || "",
       tipo_trabajador: String(item.tipo_trabajador),
       categoria: String(item.categoria),
       tipo_sindicato: item.tipo_sindicato ? String(item.tipo_sindicato) : "",
@@ -267,6 +290,8 @@ export function usePersonalPage() {
     setDetail,
     saving,
     loading,
+    initialLoading,
+    isFetching,
     form,
     setForm,
     empresaFilter,
@@ -280,8 +305,6 @@ export function usePersonalPage() {
     empresas,
     sucursales,
     areas,
-    ubicaciones,
-    tiposDoc,
     tiposTrab,
     categorias,
     tiposSind,

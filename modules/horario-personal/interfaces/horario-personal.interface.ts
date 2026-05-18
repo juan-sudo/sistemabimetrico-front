@@ -1,19 +1,10 @@
-﻿export type Personal = {
+export type Personal = {
   id: number
   numero_documento: string
   nombres_completos: string
-  area: number
-  sucursal: number
 }
 
-export type Turno = {
-  id: number
-  codigo: string
-  nombre: string
-  tipo: "GENERAL" | "GENERAL_PERSONALIZADO" | "DESCANSO"
-}
-
-export type Bloque = {
+export type TurnoBlock = {
   id: number
   turno: number
   orden: number
@@ -21,14 +12,12 @@ export type Bloque = {
   hora_salida: string
 }
 
-export type Area = {
+export type Turno = {
   id: number
+  codigo: string
   nombre: string
-}
-
-export type Sucursal = {
-  id: number
-  nombre: string
+  tipo: "GENERAL" | "GENERAL_PERSONALIZADO" | "DESCANSO"
+  bloques_detalle?: TurnoBlock[]
 }
 
 export type PersonalTurno = {
@@ -38,6 +27,14 @@ export type PersonalTurno = {
   fecha_inicio: string
   fecha_fin: string | null
   observacion: string
+  personal_nombre: string
+  personal_documento: string
+  sucursal_nombre: string
+  area_nombre: string
+  turno_nombre: string
+  horario: string
+  hora_entrada: string
+  hora_salida: string
 }
 
 export type FormState = {
@@ -54,7 +51,14 @@ export type HorarioPersonalRow = PersonalTurno & {
   areaNombre: string
   sucursalNombre: string
   turnoNombre: string
-  horario: string
   horaEntrada: string
   horaSalida: string
 }
+
+export type PaginatedResponse<T> = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
+}
+

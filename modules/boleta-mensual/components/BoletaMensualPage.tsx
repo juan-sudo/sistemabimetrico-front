@@ -4,8 +4,13 @@ import BoletaMensualFilters from "./BoletaMensualFilters"
 import BoletaMensualHeader from "./BoletaMensualHeader"
 import BoletaMensualTable from "./BoletaMensualTable"
 import useBoletaMensualModule from "../hooks/useBoletaMensualModule"
+import type { BoletaMensualInitialData } from "../interfaces/boleta-mensual"
 
-export default function BoletaMensualPage() {
+type Props = {
+  initialData: BoletaMensualInitialData | null
+}
+
+export default function BoletaMensualPage({ initialData }: Props) {
   const {
     token,
     month,
@@ -26,13 +31,12 @@ export default function BoletaMensualPage() {
     handleGenerarBoletas,
     handleDescargarExcel,
     handleDescargarPdf,
-  } = useBoletaMensualModule()
+  } = useBoletaMensualModule({ initialData })
 
-  if (!token) return <section className="p-6 text-sm text-slate-600">Inicia sesion para continuar.</section>
+  if (!token && !initialData) return <section className="p-6 text-sm text-slate-600">Inicia sesion para continuar.</section>
 
   return (
-    <section className="min-h-[calc(100vh-7rem)] bg-[radial-gradient(circle_at_top_right,#dcfce7_0%,#f8fafc_45%,#eef2ff_100%)] p-3 md:p-6">
-      <div className="mx-auto w-full max-w-6xl space-y-5">
+    <>
         <BoletaMensualHeader
           generating={generating}
           hasSelection={selectedIds.length > 0}
@@ -56,7 +60,6 @@ export default function BoletaMensualPage() {
         <p className="px-1 text-sm font-semibold text-slate-600">
           Periodo: {periodo} | Seleccionados: {selectedIds.length}
         </p>
-      </div>
-    </section>
+    </>
   )
 }

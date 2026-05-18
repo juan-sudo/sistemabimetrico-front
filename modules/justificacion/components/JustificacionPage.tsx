@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { Download, Eye, FileSpreadsheet, FileText, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ export default function JustificacionPage() {
   const {
     token,
     loading,
+    isFetching,
     saving,
     openCrear,
     setOpenCrear,
@@ -47,33 +48,27 @@ export default function JustificacionPage() {
   if (!token) return <section className="p-6 text-sm text-slate-600">Inicia sesion para continuar.</section>
 
   return (
-    <section className="min-h-[calc(100vh-7rem)] min-w-0 max-w-full overflow-x-hidden bg-[radial-gradient(circle_at_top_right,#dcfce7_0%,#f8fafc_45%,#eef2ff_100%)] p-3 md:p-6">
-      <div className="mx-auto w-full min-w-0 max-w-7xl space-y-5">
-        <header className="rounded-2xl border border-white/50 bg-white/80 p-5 shadow-lg backdrop-blur md:p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-700"><FileText size={22} /></div>
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-slate-800 md:text-3xl">Registrar justificacion</h1>
-                <p className="text-sm text-slate-500">Registra y gestiona justificaciones del personal.</p>
-              </div>
-            </div>
-            <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-              <Button type="button" variant="outline" className="w-full border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50 sm:w-auto" onClick={descargarPdf}>
-                <FileText size={16} className="mr-2" />Descargar PDF
+    <>
+      <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-white/50 bg-white/80 px-5 py-3 shadow-sm backdrop-blur">
+              <Button type="button" variant="outline" className="border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50" onClick={descargarPdf}>
+                <FileText size={16} className="mr-2" />
+                Descargar PDF
               </Button>
-              <Button type="button" variant="outline" className="w-full border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50 sm:w-auto" onClick={descargarExcel}>
-                <FileSpreadsheet size={16} className="mr-2" />Descargar Excel
+              <Button type="button" variant="outline" className="border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50" onClick={descargarExcel}>
+                <FileSpreadsheet size={16} className="mr-2" />
+                Descargar Excel
               </Button>
               <Dialog open={openCrear} onOpenChange={setOpenCrear}>
                 <DialogTrigger asChild>
-                  <Button type="button" className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
-                    <Download size={16} className="mr-2" />Crear justificacion
+                  <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700">
+                    <Download size={16} className="mr-2" />
+                    Crear justificacion
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="w-[96vw] max-w-6xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-h-[88vh] w-[95vw] max-w-2xl overflow-y-auto p-4 sm:w-[92vw] sm:max-w-5xl sm:p-6 xl:max-w-6xl">
                   <DialogHeader><DialogTitle>Crear justificacion por empleado</DialogTitle></DialogHeader>
-                  <div className="grid gap-4 lg:grid-cols-[620px_420px] lg:justify-between">
+                  <div className="grid gap-4 xl:grid-cols-[minmax(640px,1fr)_minmax(360px,440px)] xl:items-start">
                     <div className="overflow-hidden rounded-xl border border-slate-200">
                       <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">Personal</div>
                       <div className="border-b border-slate-200 p-2"><Input value={busquedaEmpleado} onChange={(e) => setBusquedaEmpleado(e.target.value)} placeholder="Filtrar empleado por nombre o DNI" /></div>
@@ -128,16 +123,30 @@ export default function JustificacionPage() {
                 </DialogContent>
               </Dialog>
             </div>
-          </div>
-        </header>
 
         <div className="min-w-0 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-5">
-            <FilterSelect label="Sucursal" value={sucursalId} options={sucursales.map((x) => ({ label: x.nombre, value: String(x.id) }))} onChange={setSucursalId} />
-            <FilterSelect label="Area" value={areaId} options={areasFiltradas.map((x) => ({ label: x.nombre, value: String(x.id) }))} onChange={setAreaId} />
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Filtrar por</label><Input value={busquedaGeneral} onChange={(e) => setBusquedaGeneral(e.target.value)} placeholder="Buscar por nombres completos o documento" /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Buscar por Motivo</label><Input value={filtroMotivo} onChange={(e) => setFiltroMotivo(e.target.value)} placeholder="Comision, permiso..." /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Buscar por Fechas</label><Input type="date" value={filtroFecha} onChange={(e) => setFiltroFecha(e.target.value)} /></div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[220px] flex-1">
+              <FilterSelect label="Sucursal" value={sucursalId} options={sucursales.map((x) => ({ label: x.nombre, value: String(x.id) }))} onChange={setSucursalId} />
+            </div>
+            <div className="min-w-[220px] flex-1">
+              <FilterSelect label="Area" value={areaId} options={areasFiltradas.map((x) => ({ label: x.nombre, value: String(x.id) }))} onChange={setAreaId} />
+            </div>
+            <div className="min-w-[220px] flex-1 space-y-1">
+              <label className="text-sm font-medium text-slate-700">Buscar por Fecha</label>
+              <Input type="date" value={filtroFecha} onChange={(e) => setFiltroFecha(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Filtrar por</label>
+              <Input value={busquedaGeneral} onChange={(e) => setBusquedaGeneral(e.target.value)} placeholder="Buscar por nombres completos o documento" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Buscar por Motivo</label>
+              <Input value={filtroMotivo} onChange={(e) => setFiltroMotivo(e.target.value)} placeholder="Comision, permiso..." />
+            </div>
           </div>
 
           <div className="space-y-3 rounded-xl border border-slate-200 p-3">
@@ -155,8 +164,8 @@ export default function JustificacionPage() {
                       const p = personalMap[row.personal]
                       return (
                         <tr key={row.id} className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                          <td className="border-t border-slate-200 px-2 py-2 text-xs text-slate-700">{p?.nombres_completos || "-"}</td>
-                          <td className="border-t border-slate-200 px-2 py-2 text-xs text-slate-700">{p?.numero_documento || "-"}</td>
+                          <td className="border-t border-slate-200 px-2 py-2 text-xs text-slate-700">{row.personal_nombres_completos || p?.nombres_completos || "-"}</td>
+                          <td className="border-t border-slate-200 px-2 py-2 text-xs text-slate-700">{row.personal_numero_documento || p?.numero_documento || "-"}</td>
                           <td className="border-t border-slate-200 px-2 py-2 text-xs text-slate-700">{row.motivo}</td>
                           <td className="border-t border-slate-200 px-2 py-2 text-xs text-slate-700">{row.tipo === "SALIDA" ? "Salida" : "Ingreso"}</td>
                           <td className="border-t border-slate-200 px-2 py-2 text-xs text-slate-700">{row.fecha_inicio}</td>
@@ -174,6 +183,7 @@ export default function JustificacionPage() {
                 </table>
               </div>
             </div>
+            <p className="text-xs text-slate-500">{isFetching ? "Actualizando resultados..." : `Registros: ${justificacionesFiltradas.length}`}</p>
           </div>
         </div>
       </div>
@@ -184,12 +194,12 @@ export default function JustificacionPage() {
           {detailRow && (
             <div className="space-y-5 px-6 pb-4">
               <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-900 p-5 text-white shadow-lg">
-                <p className="text-lg font-semibold tracking-tight">{personalMap[detailRow.personal]?.nombres_completos || "Sin nombre"}</p>
-                <p className="text-sm text-slate-200">DNI: {personalMap[detailRow.personal]?.numero_documento || "-"}</p>
+                <p className="text-lg font-semibold tracking-tight">{detailRow.personal_nombres_completos || personalMap[detailRow.personal]?.nombres_completos || "Sin nombre"}</p>
+                <p className="text-sm text-slate-200">DNI: {detailRow.personal_numero_documento || personalMap[detailRow.personal]?.numero_documento || "-"}</p>
               </div>
               <div className="grid gap-3 md:grid-cols-3">
-                <DetailItem label="Sucursal" value={sucursalMap[detailRow.sucursal] || "-"} />
-                <DetailItem label="Area" value={areaMap[detailRow.area] || "-"} />
+                <DetailItem label="Sucursal" value={detailRow.sucursal_nombre || sucursalMap[detailRow.sucursal] || "-"} />
+                <DetailItem label="Area" value={detailRow.area_nombre || areaMap[detailRow.area] || "-"} />
                 <DetailItem label="Motivo" value={detailRow.motivo} />
                 <DetailItem label="Tipo" value={detailRow.tipo} />
                 <DetailItem label="Rango" value={detailRow.rango} />
@@ -205,7 +215,7 @@ export default function JustificacionPage() {
           <DialogFooter><Button type="button" className="mb-5 mr-6 bg-slate-900 hover:bg-slate-800" onClick={() => setDetailRow(null)}>Cerrar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </>
   )
 }
 

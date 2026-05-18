@@ -30,6 +30,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import useUserStore from "@/stores/useUserStore"
+import { logoutRequest } from "@/lib/api-client"
 
 export function NavUser({
   user,
@@ -109,7 +110,15 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => { logout(); router.push("/login") }}>
+            <DropdownMenuItem onClick={async () => {
+              try {
+                await logoutRequest()
+              } catch (_err) {
+                // Ignore logout transport errors and clear local state anyway.
+              }
+              logout()
+              router.push("/login")
+            }}>
               <LogOut />
               Cerrar sesion
             </DropdownMenuItem>

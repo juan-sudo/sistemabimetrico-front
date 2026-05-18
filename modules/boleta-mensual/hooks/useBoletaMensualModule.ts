@@ -4,24 +4,28 @@ import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { openPayrollSlipPrint, type PayrollSlipPayload } from "@/lib/payroll-slip"
 import useUserStore from "@/stores/useUserStore"
-import type { Area, Boleta, Personal, PersonalBoleta, TipoTrabajador } from "../interfaces/boleta-mensual"
+import type { Area, Boleta, BoletaMensualInitialData, Personal, PersonalBoleta, TipoTrabajador } from "../interfaces/boleta-mensual"
 import { fetchBaseData, fetchBoletas, fetchResumenPlanilla, generarBoletas } from "../services/boleta-mensual.service"
 import { buildPrintHtml, getCsvLines, getPeriodo, PEN } from "../utils/boleta-mensual"
 
-export default function useBoletaMensualModule() {
+type Options = {
+  initialData: BoletaMensualInitialData | null
+}
+
+export default function useBoletaMensualModule({ initialData }: Options) {
   const token = useUserStore((s) => s.accessToken)
   const now = new Date()
 
-  const [month, setMonth] = useState(String(now.getMonth() + 1).padStart(2, "0"))
-  const [year, setYear] = useState(String(now.getFullYear()))
+  const [month, setMonth] = useState(initialData?.month || String(now.getMonth() + 1).padStart(2, "0"))
+  const [year, setYear] = useState(initialData?.year || String(now.getFullYear()))
   const [search, setSearch] = useState("")
   const [selected, setSelected] = useState<Record<number, boolean>>({})
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialData)
   const [generating, setGenerating] = useState(false)
-  const [personales, setPersonales] = useState<Personal[]>([])
-  const [areas, setAreas] = useState<Area[]>([])
-  const [tiposTrabajador, setTiposTrabajador] = useState<TipoTrabajador[]>([])
-  const [boletas, setBoletas] = useState<Boleta[]>([])
+  const [personales, setPersonales] = useState<Personal[]>(initialData?.personales || [])
+  const [areas, setAreas] = useState<Area[]>(initialData?.areas || [])
+  const [tiposTrabajador, setTiposTrabajador] = useState<TipoTrabajador[]>(initialData?.tiposTrabajador || [])
+  const [boletas, setBoletas] = useState<Boleta[]>(initialData?.boletas || [])
 
   const loadBase = async () => {
     if (!token) return
@@ -38,6 +42,7 @@ export default function useBoletaMensualModule() {
   }
 
   useEffect(() => {
+    if (initialData) return
     const run = async () => {
       if (!token) {
         setLoading(false)
@@ -54,12 +59,13 @@ export default function useBoletaMensualModule() {
       }
     }
     run()
-  }, [token])
+  }, [token, initialData])
 
   useEffect(() => {
     if (!token) return
+    if (initialData && month === initialData.month && year === initialData.year) return
     loadBoletasByPeriodo().catch(() => {})
-  }, [month, year, token])
+  }, [month, year, token, initialData])
 
   const areaMap = useMemo(() => Object.fromEntries(areas.map((x) => [x.id, x.nombre])), [areas])
   const tipoMap = useMemo(() => Object.fromEntries(tiposTrabajador.map((x) => [x.id, x.descripcion])), [tiposTrabajador])

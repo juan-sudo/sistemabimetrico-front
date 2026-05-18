@@ -24,3 +24,10 @@ export type ProbarConexionPayload = {
   direccion?: string
   puerto?: string | number
 }
+
+export type DispositivoListResponse = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: Dispositivo[]
+}

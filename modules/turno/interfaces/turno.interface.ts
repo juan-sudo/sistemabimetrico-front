@@ -1,4 +1,12 @@
-﻿export type Turno = {
+export type Bloque = {
+  id: number
+  turno: number
+  orden: number
+  hora_entrada: string
+  hora_salida: string
+}
+
+export type Turno = {
   id: number
   codigo: string
   nombre: string
@@ -6,14 +14,7 @@
   activo: boolean
   horario?: string
   descripcion_larga?: string
-}
-
-export type Bloque = {
-  id: number
-  turno: number
-  orden: number
-  hora_entrada: string
-  hora_salida: string
+  bloques_detalle?: Bloque[]
 }
 
 export type FormState = {
@@ -33,3 +34,11 @@ export type TurnoRow = Turno & {
 }
 
 export type TipoLabelMap = Record<Turno["tipo"], string>
+
+export type TurnoListResponse = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: Turno[]
+}
+

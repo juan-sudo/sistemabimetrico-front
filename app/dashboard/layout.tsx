@@ -1,6 +1,7 @@
-import dynamic from "next/dynamic"
+import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
-import { AuthGuard } from "@/components/auth-guard"
+import { DashboardHeaderWidgets, DashboardNotificationsWidget } from "@/components/dashboard-header-widgets"
 import {
   SidebarInset,
   SidebarProvider,
@@ -8,49 +9,40 @@ import {
 } from "@/components/ui/sidebar"
 import { ThemeToggleButton } from "@/components/theme-toggle"
 
-const DashboardRecentSearch = dynamic(
-  () => import("@/components/dashboard-recent-search").then((mod) => mod.DashboardRecentSearch),
-  {
-    ssr: false,
-    loading: () => <div className="hidden h-10 w-full max-w-xl rounded-lg border border-slate-200 bg-white md:block" />,
-  }
-)
+const ACCESS_COOKIE = "sb_access_token"
 
-const NotificationsMenu = dynamic(
-  () => import("@/components/notifications-menu").then((mod) => mod.NotificationsMenu),
-  {
-    ssr: false,
-    loading: () => <div className="h-9 w-9 rounded-lg border border-slate-200 bg-white" />,
-  }
-)
-
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const cookieStore = await cookies()
+  const accessToken = cookieStore.get(ACCESS_COOKIE)?.value || ""
+
+  if (!accessToken) {
+    redirect("/login?next=/dashboard")
+  }
+
   return (
-    <AuthGuard>
-      <SidebarProvider>
-        <AppSidebar />
+    <SidebarProvider>
+      <AppSidebar />
 
-        <SidebarInset className="min-w-0 bg-slate-50/50">
-          <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-            <div className="flex h-16 items-center gap-3 px-3 sm:px-4 lg:px-6">
-              <SidebarTrigger className="h-9 w-9 rounded-lg border border-slate-200 bg-white hover:bg-slate-50" />
+      <SidebarInset className="min-w-0 bg-slate-50/50">
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white">
+          <div className="flex h-16 items-center gap-3 px-3 sm:px-4 lg:px-6">
+            <SidebarTrigger className="h-9 w-9 rounded-lg border border-slate-200 bg-white hover:bg-slate-50" />
 
-              <DashboardRecentSearch />
+            <DashboardHeaderWidgets />
 
-              <ThemeToggleButton className="ml-auto h-9 w-9 rounded-lg border border-slate-200 bg-white hover:bg-slate-50" />
-              <NotificationsMenu />
-            </div>
-          </header>
+            <ThemeToggleButton className="ml-auto h-9 w-9 rounded-lg border border-slate-200 bg-white hover:bg-slate-50" />
+            <DashboardNotificationsWidget />
+          </div>
+        </header>
 
-          <main className="flex-1 overflow-y-auto p-0">
-            <div className="w-full space-y-6">{children}</div>
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
-    </AuthGuard>
+        <main className="flex-1 overflow-y-auto p-0">
+          <div className="w-full space-y-6">{children}</div>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

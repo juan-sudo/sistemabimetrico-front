@@ -23,3 +23,10 @@ export type EmpresaPayload = {
   correo: string
   activo: boolean
 }
+
+export type EmpresaListResponse = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: Empresa[]
+}

@@ -11,3 +11,10 @@ export type FormState = {
   descripcion: string
   activo: boolean
 }
+
+export type TipoSindicatoListResponse = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: TipoSindicato[]
+}

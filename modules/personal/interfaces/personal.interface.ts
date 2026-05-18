@@ -3,8 +3,8 @@
   empresa: number
   sucursal: number
   area: number
-  ubicacion: number | null
-  tipo_documento: number
+  direccion: string | null
+  tipo_documento: string | null
   tipo_trabajador: number
   categoria: number
   tipo_sindicato: number | null
@@ -19,7 +19,7 @@
   empresa_nombre?: string
   sucursal_nombre?: string
   area_nombre?: string
-  ubicacion_nombre?: string
+  direccion_nombre?: string
   tipo_documento_nombre?: string
   tipo_trabajador_nombre?: string
   categoria_nombre?: string
@@ -40,7 +40,7 @@ export type FormState = {
   empresa: string
   sucursal: string
   area: string
-  ubicacion: string
+  direccion: string
   tipo_documento: string
   tipo_trabajador: string
   categoria: string

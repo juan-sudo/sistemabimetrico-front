@@ -1,5 +1,4 @@
 // components/ui/Titulo.tsx
-"use client"
 
 interface TituloProps {
   texto: string

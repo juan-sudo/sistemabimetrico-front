@@ -21,3 +21,10 @@ export type FormState = {
   nombre: string
   activo: boolean
 }
+
+export type PaginatedResponse<T> = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
+}

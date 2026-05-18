@@ -1,44 +1,69 @@
-﻿"use client"
+"use client"
 
-import { FormEvent, useEffect, useMemo, useState } from "react"
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import useUserStore from "@/stores/useUserStore"
 import type { Categoria, CategoriaFormState } from "../interfaces/categoria.interface"
 import { createCategoria, deleteCategoria, fetchCategorias, updateCategoria } from "../services/categoria.service"
-import { emptyCategoriaForm, filterCategorias, toCategoriaArray, toCategoriaPayload } from "../utils/categoria.utils"
+import { emptyCategoriaForm, toCategoriaPayload } from "../utils/categoria.utils"
+
+const PAGE_SIZE = 20
+const SEARCH_DEBOUNCE_MS = 350
 
 export function useCategoriaPage() {
   const token = useUserStore((s) => s.accessToken)
 
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [items, setItems] = useState<Categoria[]>([])
+  const [totalItems, setTotalItems] = useState(0)
   const [form, setForm] = useState<CategoriaFormState>(emptyCategoriaForm)
 
-  useEffect(() => {
-    const load = async () => {
-      if (!token) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        const data = await fetchCategorias(token)
-        setItems(toCategoriaArray(data))
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "No se pudo cargar categorias")
-      } finally {
-        setLoading(false)
-      }
+  const loadCategorias = useCallback(async () => {
+    if (!token) {
+      setLoading(false)
+      setInitialLoading(false)
+      return
     }
+    try {
+      setLoading(true)
+      setIsFetching(true)
+      const data = await fetchCategorias(token, {
+        page,
+        pageSize: PAGE_SIZE,
+        search: debouncedSearch,
+      })
+      setItems(data.results)
+      setTotalItems(data.count)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo cargar categorias")
+    } finally {
+      setLoading(false)
+      setInitialLoading(false)
+      setIsFetching(false)
+    }
+  }, [debouncedSearch, page, token])
 
-    void load()
-  }, [token])
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setPage(1)
+      setDebouncedSearch(search.trim())
+    }, SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timeoutId)
+  }, [search])
 
-  const filteredRows = useMemo(() => filterCategorias(items, search), [items, search])
+  useEffect(() => {
+    void loadCategorias()
+  }, [loadCategorias])
+
+  const filteredRows = items
 
   const resetForm = () => {
     setEditingId(null)
@@ -65,15 +90,14 @@ export function useCategoriaPage() {
       setSaving(true)
 
       if (editingId) {
-        const updated = await updateCategoria(editingId, payload, token)
-        setItems((prev) => prev.map((x) => (x.id === editingId ? updated : x)))
+        await updateCategoria(editingId, payload, token)
         toast.success("Categoria actualizada")
       } else {
-        const created = await createCategoria(payload, token)
-        setItems((prev) => [created, ...prev])
+        await createCategoria(payload, token)
         toast.success("Categoria creada")
       }
 
+      await loadCategorias()
       setOpen(false)
       resetForm()
     } catch (err) {
@@ -100,19 +124,31 @@ export function useCategoriaPage() {
 
     try {
       await deleteCategoria(item.id, token)
-      setItems((prev) => prev.filter((x) => x.id !== item.id))
+      await loadCategorias()
       toast.success("Categoria eliminada")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo eliminar")
     }
   }
 
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(totalItems / PAGE_SIZE)), [totalItems])
+  const canPrev = page > 1
+  const canNext = page < totalPages
+
   return {
     token,
     search,
     setSearch,
+    page,
+    setPage,
+    totalItems,
+    totalPages,
+    canPrev,
+    canNext,
     open,
     loading,
+    initialLoading,
+    isFetching,
     saving,
     editingId,
     form,
@@ -125,3 +161,4 @@ export function useCategoriaPage() {
     openCreateModal,
   }
 }
+

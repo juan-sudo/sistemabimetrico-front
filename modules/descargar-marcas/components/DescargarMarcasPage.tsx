@@ -1,6 +1,8 @@
 ﻿"use client"
 
-import { Download } from "lucide-react"
+import { useMemo } from "react"
+import { Download, Search } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { useDescargarMarcasPage } from "../hooks/useDescargarMarcasPage"
 
@@ -14,21 +16,50 @@ export default function DescargarMarcasPage() {
     readingRaw,
     readingCapacity,
     devices,
+    filteredDevices,
     selectedIds,
-    setSelectedIds,
+    selectedIdSet,
+    search,
+    setSearch,
     rawPreview,
+    rawPreviewText,
     capacityPreview,
     fechaInicioRaw,
     setFechaInicioRaw,
     fechaFinRaw,
     setFechaFinRaw,
+    claveComunicacion,
+    setClaveComunicacion,
     allSelected,
     toggleSelect,
+    toggleSelectAllFiltered,
     descargarMarcaciones,
     onVerRawDispositivo,
     onVerCapacidadDispositivo,
     descargarRawPreviewJson,
   } = useDescargarMarcasPage()
+
+  const deviceRows = useMemo(
+    () =>
+      filteredDevices.map((item, index) => (
+        <tr key={item.id} className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+          <td className="border-t border-slate-200 px-3 py-2">
+            <input
+              type="checkbox"
+              checked={selectedIdSet.has(item.id)}
+              onChange={() => toggleSelect(item.id)}
+            />
+          </td>
+          <td className="border-t border-slate-200 px-3 py-2 text-slate-700">{item.nombre}</td>
+          <td className="border-t border-slate-200 px-3 py-2 text-slate-700">{item.direccion}</td>
+          <td className="border-t border-slate-200 px-3 py-2 text-slate-700">{item.puerto}</td>
+          <td className="border-t border-slate-200 px-3 py-2 text-slate-700">
+            {item.uso === "ASISTENCIA" ? "Control de Asistencia" : "Control de Acceso"}
+          </td>
+        </tr>
+      )),
+    [filteredDevices, selectedIdSet, toggleSelect]
+  )
 
   if (!token) return <section className="p-6 text-sm text-slate-600">Inicia sesion para continuar.</section>
 
@@ -37,8 +68,29 @@ export default function DescargarMarcasPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-600">
           Seleccionados: <span className="font-semibold text-slate-900">{selectedIds.length}</span>
+          <span className="ml-2 text-slate-500">(Mostrando {filteredDevices.length} de {devices.length})</span>
         </p>
         <div className="flex flex-wrap gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre, IP, puerto o uso"
+              className="h-10 w-72 max-w-full rounded-md border border-slate-300 pl-9 pr-3 text-sm text-slate-700"
+            />
+          </div>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={claveComunicacion}
+            onChange={(e) => setClaveComunicacion(e.target.value)}
+            className="h-10 w-40 rounded-md border border-slate-300 px-3 text-sm text-slate-700"
+            title="Clave de comunicacion (Comm Key)"
+            placeholder="Clave (0)"
+          />
           <input
             type="date"
             value={fechaInicioRaw}
@@ -88,7 +140,7 @@ export default function DescargarMarcasPage() {
                 <input
                   type="checkbox"
                   checked={allSelected}
-                  onChange={(e) => setSelectedIds(e.target.checked ? devices.map((d) => d.id) : [])}
+                  onChange={(e) => toggleSelectAllFiltered(e.target.checked)}
                 />
               </th>
               <th className="px-3 py-2 text-left font-semibold">Nombre</th>
@@ -104,33 +156,28 @@ export default function DescargarMarcasPage() {
                   Cargando dispositivos...
                 </td>
               </tr>
-            ) : devices.map((item, index) => (
-              <tr key={item.id} className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                <td className="border-t border-slate-200 px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(item.id)}
-                    onChange={() => toggleSelect(item.id)}
-                  />
-                </td>
-                <td className="border-t border-slate-200 px-3 py-2 text-slate-700">{item.nombre}</td>
-                <td className="border-t border-slate-200 px-3 py-2 text-slate-700">{item.direccion}</td>
-                <td className="border-t border-slate-200 px-3 py-2 text-slate-700">{item.puerto}</td>
-                <td className="border-t border-slate-200 px-3 py-2 text-slate-700">
-                  {item.uso === "ASISTENCIA" ? "Control de Asistencia" : "Control de Acceso"}
-                </td>
-              </tr>
-            ))}
-            {!loading && devices.length === 0 ? (
+            ) : null}
+            {!loading ? deviceRows : null}
+            {!loading && filteredDevices.length === 0 ? (
               <tr>
                 <td colSpan={5} className="border-t border-slate-200 px-3 py-4 text-center text-sm text-slate-500">
-                  No hay dispositivos activos.
+                  {devices.length === 0 ? "No hay dispositivos activos." : "No hay resultados para la busqueda actual."}
                 </td>
               </tr>
             ) : null}
           </tbody>
         </table>
       </div>
+
+      {!loading && devices.length === 0 ? (
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          No hay dispositivos activos. Crea uno en{" "}
+          <Link href="/dashboard/dispositivos" className="font-semibold text-emerald-700 underline">
+            Dispositivos
+          </Link>{" "}
+          y luego vuelve aquí para descargar marcaciones.
+        </div>
+      ) : null}
 
       {rawPreview.length > 0 ? (
         <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -143,7 +190,7 @@ export default function DescargarMarcasPage() {
             </Button>
           </div>
           <div className="max-h-72 overflow-auto rounded-md border border-slate-200 bg-white p-2">
-            <pre className="text-xs text-slate-700">{JSON.stringify(rawPreview.slice(0, 100), null, 2)}</pre>
+            <pre className="text-xs text-slate-700">{rawPreviewText}</pre>
           </div>
           <p className="text-xs text-slate-500">Se muestran maximo 100 en pantalla. El JSON descargado incluye todos los registros.</p>
         </div>
@@ -166,6 +213,7 @@ export default function DescargarMarcasPage() {
                   <th className="px-3 py-2 text-left">Usuarios</th>
                   <th className="px-3 py-2 text-left">Platform</th>
                   <th className="px-3 py-2 text-left">Firmware</th>
+                  <th className="px-3 py-2 text-left">Detalle</th>
                 </tr>
               </thead>
               <tbody>
@@ -179,6 +227,7 @@ export default function DescargarMarcasPage() {
                     <td className="border-t border-slate-200 px-3 py-2">{`${String(item.usuarios_usados ?? "-")} / ${String(item.usuarios_capacidad ?? "-")}`}</td>
                     <td className="border-t border-slate-200 px-3 py-2">{String(item.platform ?? "-")}</td>
                     <td className="border-t border-slate-200 px-3 py-2">{String(item.firmware ?? "-")}</td>
+                    <td className="border-t border-slate-200 px-3 py-2">{String(item.detalle ?? "-")}</td>
                   </tr>
                 ))}
               </tbody>
@@ -192,17 +241,7 @@ export default function DescargarMarcasPage() {
   const contentPlaceholder = <div className="rounded-b-xl border border-slate-300 bg-white p-4 text-sm text-slate-500">Modulo en construccion.</div>
 
   return (
-    <section className="min-h-[calc(100vh-7rem)] bg-[radial-gradient(circle_at_top_right,#dcfce7_0%,#f8fafc_45%,#eef2ff_100%)] p-3 md:p-6">
-      <div className="mx-auto w-full max-w-6xl space-y-5">
-        <header className="rounded-2xl border border-white/50 bg-white/80 p-5 shadow-lg backdrop-blur md:p-6">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-700"><Download size={22} /></div>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-800 md:text-3xl">Descargar Marcaciones</h1>
-              <p className="text-sm text-slate-500">Descarga y registra marcaciones desde dispositivos biometricos en modo solo lectura.</p>
-            </div>
-          </div>
-        </header>
+    <>
 
         <div className="rounded-xl bg-transparent">
           <div className="inline-flex">
@@ -230,7 +269,6 @@ export default function DescargarMarcasPage() {
           {tab === "usb" && contentPlaceholder}
           {tab === "excel" && contentPlaceholder}
         </div>
-      </div>
-    </section>
+    </>
   )
 }

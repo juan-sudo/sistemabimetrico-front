@@ -13,13 +13,11 @@ type FetchPersonalesParams = {
   estadoFilter: string
 }
 
-export async function fetchPersonalCatalogs(token: string): Promise<[unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown]> {
+export async function fetchPersonalCatalogs(token: string): Promise<[unknown, unknown, unknown, unknown, unknown, unknown, unknown]> {
   return Promise.all([
     authRequest(apiEndpoints.empresas, { token, cacheMs: CACHE_STATIC_MS }),
     authRequest(apiEndpoints.sucursales, { token, cacheMs: CACHE_STATIC_MS }),
     authRequest(apiEndpoints.areas, { token, cacheMs: CACHE_STATIC_MS }),
-    authRequest(apiEndpoints.ubicacionesGeograficas, { token, cacheMs: CACHE_STATIC_MS }),
-    authRequest(apiEndpoints.tiposDocumento, { token, cacheMs: CACHE_STATIC_MS }),
     authRequest(apiEndpoints.tiposTrabajador, { token, cacheMs: CACHE_STATIC_MS }),
     authRequest(apiEndpoints.categorias, { token, cacheMs: CACHE_STATIC_MS }),
     authRequest(apiEndpoints.tiposSindicato, { token, cacheMs: CACHE_STATIC_MS }),

@@ -1,53 +1,93 @@
-﻿"use client"
+"use client"
 
-import { FormEvent, useEffect, useMemo, useState } from "react"
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import useUserStore from "@/stores/useUserStore"
-import type { Bloque, FormState, Turno, TurnoRow } from "../interfaces/turno.interface"
-import { createBloqueTurno, createTurno, deleteBloqueTurno, deleteTurno, fetchTurnosData, updateTurno } from "../services/turno.service"
-import { asArray, buildBloquesByTurno, buildBloquesPayload, buildTurnoRows, buildTurnosCsv, downloadCsv, emptyForm, filterTurnos, validateTurnoForm } from "../utils/turno.utils"
+import type { FormState, Turno, TurnoRow } from "../interfaces/turno.interface"
+import {
+  createBloqueTurno,
+  createTurno,
+  deleteBloqueTurno,
+  deleteTurno,
+  fetchTurnos,
+  updateTurno,
+} from "../services/turno.service"
+import { buildBloquesPayload, buildTurnosCsv, downloadCsv, emptyForm, validateTurnoForm } from "../utils/turno.utils"
+
+const PAGE_SIZE = 20
+const SEARCH_DEBOUNCE_MS = 350
+
+function toTurnoRows(turnos: Turno[]): TurnoRow[] {
+  return turnos.map((item) => {
+    const bloques = (item.bloques_detalle || []).slice().sort((a, b) => a.orden - b.orden)
+    return {
+      ...item,
+      entrada: bloques.map((x) => x.hora_entrada.slice(0, 5)).join(" / "),
+      salida: bloques.map((x) => x.hora_salida.slice(0, 5)).join(" / "),
+    }
+  })
+}
 
 export function useTurnoPage() {
   const token = useUserStore((s) => s.accessToken)
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [tipoFilter, setTipoFilter] = useState("")
   const [estadoFilter, setEstadoFilter] = useState("")
+  const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
   const [detail, setDetail] = useState<TurnoRow | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [turnos, setTurnos] = useState<Turno[]>([])
-  const [bloques, setBloques] = useState<Bloque[]>([])
+  const [rows, setRows] = useState<TurnoRow[]>([])
+  const [totalItems, setTotalItems] = useState(0)
   const [form, setForm] = useState<FormState>(emptyForm)
 
-  const loadData = async () => {
-    if (!token) return
-    const [t, b] = await fetchTurnosData(token)
-    setTurnos(asArray(t) as Turno[])
-    setBloques(asArray(b) as Bloque[])
-  }
+  const loadTurnos = useCallback(async () => {
+    if (!token) {
+      setLoading(false)
+      setInitialLoading(false)
+      return
+    }
+    try {
+      setLoading(true)
+      setIsFetching(true)
+      const response = await fetchTurnos(token, {
+        page,
+        pageSize: PAGE_SIZE,
+        search: debouncedSearch,
+        tipo: tipoFilter,
+        estado: estadoFilter,
+      })
+      setRows(toTurnoRows(response.results))
+      setTotalItems(response.count)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo cargar turnos")
+    } finally {
+      setLoading(false)
+      setInitialLoading(false)
+      setIsFetching(false)
+    }
+  }, [debouncedSearch, estadoFilter, page, tipoFilter, token])
 
   useEffect(() => {
-    const load = async () => {
-      if (!token) {
-        setLoading(false)
-        return
-      }
-      try {
-        await loadData()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "No se pudo cargar turnos")
-      } finally {
-        setLoading(false)
-      }
-    }
-    void load()
-  }, [token])
+    const timeoutId = window.setTimeout(() => {
+      setPage(1)
+      setDebouncedSearch(search.trim())
+    }, SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timeoutId)
+  }, [search])
 
-  const bloquesByTurno = useMemo(() => buildBloquesByTurno(bloques), [bloques])
-  const rows = useMemo(() => buildTurnoRows(turnos, bloquesByTurno), [turnos, bloquesByTurno])
-  const filteredRows = useMemo(() => filterTurnos(rows, search, tipoFilter, estadoFilter), [rows, search, tipoFilter, estadoFilter])
+  useEffect(() => {
+    setPage(1)
+  }, [tipoFilter, estadoFilter])
+
+  useEffect(() => {
+    void loadTurnos()
+  }, [loadTurnos])
 
   const resetForm = () => {
     setEditingId(null)
@@ -76,8 +116,8 @@ export function useTurnoPage() {
       setSaving(true)
       if (editingId) {
         await updateTurno(editingId, token, turnoPayload)
-        const existentes = bloquesByTurno[editingId] || []
-        await Promise.all(existentes.map((b) => deleteBloqueTurno(b.id, token)))
+        const existing = rows.find((x) => x.id === editingId)?.bloques_detalle || []
+        await Promise.all(existing.map((b) => deleteBloqueTurno(b.id, token)))
         await Promise.all(
           bloquesPayload.map((b) =>
             createBloqueTurno(token, {
@@ -88,7 +128,7 @@ export function useTurnoPage() {
         )
         toast.success("Turno actualizado")
       } else {
-        const created = (await createTurno(token, turnoPayload)) as Turno
+        const created = await createTurno(token, turnoPayload)
         await Promise.all(
           bloquesPayload.map((b) =>
             createBloqueTurno(token, {
@@ -100,7 +140,7 @@ export function useTurnoPage() {
         toast.success("Turno creado")
       }
 
-      await loadData()
+      await loadTurnos()
       setOpen(false)
       resetForm()
     } catch (err) {
@@ -111,7 +151,7 @@ export function useTurnoPage() {
   }
 
   const onEdit = (row: TurnoRow) => {
-    const bs = (bloquesByTurno[row.id] || []).sort((a, b) => a.orden - b.orden)
+    const bs = (row.bloques_detalle || []).slice().sort((a, b) => a.orden - b.orden)
     setEditingId(row.id)
     setForm({
       codigo: row.codigo,
@@ -130,8 +170,8 @@ export function useTurnoPage() {
     if (!token || !window.confirm(`Eliminar turno "${row.nombre}"?`)) return
     try {
       await deleteTurno(row.id, token)
-      await loadData()
       setDetail((prev) => (prev?.id === row.id ? null : prev))
+      await loadTurnos()
       toast.success("Turno eliminado")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo eliminar turno")
@@ -139,9 +179,14 @@ export function useTurnoPage() {
   }
 
   const onExport = () => {
-    const lines = buildTurnosCsv(filteredRows)
+    const lines = buildTurnosCsv(rows)
     downloadCsv("turnos.csv", lines)
   }
+
+  const filteredRows = rows
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(totalItems / PAGE_SIZE)), [totalItems])
+  const canPrev = page > 1
+  const canNext = page < totalPages
 
   return {
     token,
@@ -151,11 +196,19 @@ export function useTurnoPage() {
     setTipoFilter,
     estadoFilter,
     setEstadoFilter,
+    page,
+    setPage,
+    totalItems,
+    totalPages,
+    canPrev,
+    canNext,
     open,
     setOpen,
     detail,
     setDetail,
     loading,
+    initialLoading,
+    isFetching,
     saving,
     editingId,
     form,
@@ -168,3 +221,4 @@ export function useTurnoPage() {
     onExport,
   }
 }
+

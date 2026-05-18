@@ -25,13 +25,13 @@ export type DashboardNavItem = {
 export const dashboardNavItems: DashboardNavItem[] = [
   {
     title: "Escritorio",
-    url: "#",
+    url: "/dashboard",
     icon: SquareTerminal,
     isActive: true,
     items: [
       {
         title: "Inicio",
-        url: "#",
+        url: "/dashboard",
         moduleCode: "ESCRITORIO",
       },
     ],
@@ -58,7 +58,6 @@ export const dashboardNavItems: DashboardNavItem[] = [
     icon: Bot,
     items: [
       { title: "Listar dispositivos", url: "/dashboard/dispositivos", moduleCode: "DISPOSITIVOS" },
-      { title: "Administracion", url: "#", moduleCode: "DISPOSITIVOS" },
       { title: "Descargar marcas", url: "/dashboard/descargar-marcas", moduleCode: "DESCARGAR_MARCAS" },
     ],
   },

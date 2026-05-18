@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { BackButton } from "@/components/ui/BackButton"
-import { UsuarioContainer } from "@/components/licencias/UsuarioContainer"
-import { LicenciasCard } from "@/components/licencias/LicenciasCard"
+import { UsuarioContainer } from "./licencias/UsuarioContainer"
+import { LicenciasCard } from "./licencias/LicenciasCard"
 import { useGestionarUsuarioPage } from "../hooks/useGestionarUsuarioPage"
 import { buscarUsuarioRoute } from "../utils/gestionarusuario.utils"
 

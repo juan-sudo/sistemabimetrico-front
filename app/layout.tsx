@@ -1,12 +1,12 @@
-import '@/app/ui/global.css';
-import { inter } from '@/app/ui/fonts';
+import "@/app/globals.css"
+import { inter } from "@/lib/fonts"
 import { ThemeProvider, ThemeScript } from "@/components/theme-provider"
-import { Toaster } from 'sonner';
+import { Toaster } from "sonner"
  
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -20,5 +20,5 @@ export default function RootLayout({
         </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

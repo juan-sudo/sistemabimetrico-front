@@ -14,6 +14,10 @@ export type Area = {
 export type Marcacion = {
   id: number
   personal: number
+  personal_codigo_empleado?: string
+  personal_numero_documento?: string
+  personal_nombres_completos?: string
+  personal_area?: number
   dispositivo: number | null
   descarga: number | null
   fecha_hora: string
@@ -41,6 +45,21 @@ export type TurnoBloque = {
   orden: number
   hora_entrada: string
   hora_salida: string
+}
+
+export type JustificacionLite = {
+  id: number
+  personal: number
+  fecha_inicio: string
+  fecha_fin: string
+  estado: "AUTORIZADO" | "NO_AUTORIZADO" | "PENDIENTE"
+}
+
+export type PaginatedResponse<T> = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
 }
 
 export type FullRow = {

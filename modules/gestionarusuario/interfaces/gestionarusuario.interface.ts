@@ -1,4 +1,4 @@
-﻿import type { Licencia } from "@/components/licencias/LicenciasCard"
+import type { Licencia } from "../components/licencias/LicenciasCard"
 
 export type UsuarioResumen = {
   codigo: string

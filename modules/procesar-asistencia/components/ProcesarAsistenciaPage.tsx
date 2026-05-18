@@ -1,12 +1,15 @@
-﻿"use client"
+"use client"
 
 import { CalendarDays, Cog, Search } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { useProcesarAsistenciaPage } from "../hooks/useProcesarAsistenciaPage"
 
 export default function ProcesarAsistenciaPage() {
   const {
     token,
     loading,
+    initialLoading,
+    isFetching,
     processing,
     search,
     setSearch,
@@ -14,45 +17,50 @@ export default function ProcesarAsistenciaPage() {
     setFechaInicio,
     fechaFin,
     setFechaFin,
-    filteredRows,
+    rows,
     selected,
     setSelected,
     selectedIds,
+    currentPageSelectedCount,
     toggleAll,
     handleProcesar,
     empresaMap,
     sucursalMap,
     areaMap,
+    totalItems,
   } = useProcesarAsistenciaPage()
 
   if (!token) return <section className="p-6 text-sm text-slate-600">Inicia sesion para continuar.</section>
 
   return (
-    <section className="min-h-[calc(100vh-7rem)] bg-white p-3 md:p-6">
-      <div className="mx-auto w-full max-w-7xl space-y-5">
-        <header className="rounded-2xl border border-white/50 bg-white p-5 shadow-lg md:p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-700"><Cog size={22} /></div>
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-slate-800 md:text-3xl">Procesar asistencia</h1>
-                <p className="text-sm text-slate-500">Genera el resumen mensual de asistencia y llena las tablas del reporte.</p>
-              </div>
-            </div>
-          </div>
-        </header>
+    <>
 
-        <div className="flex flex-col gap-3 rounded-xl border border-slate-300 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-end">
+        <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <span>Inicio</span>
-            <input className="h-10 rounded-md border border-slate-400 px-3 text-sm" type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
+            <input
+              className="h-10 rounded-md border border-slate-400 px-3 text-sm"
+              type="date"
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+            />
           </div>
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <span>Fin</span>
-            <input className="h-10 rounded-md border border-slate-400 px-3 text-sm" type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
+            <input
+              className="h-10 rounded-md border border-slate-400 px-3 text-sm"
+              type="date"
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+            />
           </div>
-          <button onClick={handleProcesar} disabled={selectedIds.length === 0 || processing} className="inline-flex items-center justify-center gap-2 rounded-md bg-lime-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-lime-600 disabled:cursor-not-allowed disabled:opacity-50">
-            <CalendarDays size={16} />{processing ? "Procesando..." : "Procesar"}
+          <button
+            onClick={handleProcesar}
+            disabled={selectedIds.length === 0 || processing}
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-lime-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-lime-600 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-auto"
+          >
+            <CalendarDays size={16} />
+            {processing ? "Procesando..." : "Procesar"}
           </button>
         </div>
 
@@ -69,7 +77,7 @@ export default function ProcesarAsistenciaPage() {
             <table className="w-full min-w-[1120px]">
               <thead className="sticky top-0 z-10 bg-teal-700 text-white">
                 <tr className="text-sm">
-                  <th className="w-14 border-r border-lime-400 px-3 py-3 text-center"><input type="checkbox" checked={filteredRows.length > 0 && selectedIds.length === filteredRows.length} onChange={(e) => toggleAll(e.target.checked)} aria-label="Seleccionar todos" /></th>
+                  <th className="w-14 border-r border-lime-400 px-3 py-3 text-center"><input type="checkbox" checked={rows.length > 0 && currentPageSelectedCount === rows.length} onChange={(e) => toggleAll(e.target.checked)} aria-label="Seleccionar todos" /></th>
                   <th className="border-r border-lime-400 px-3 py-3 text-left font-semibold">Empresa</th>
                   <th className="border-r border-lime-400 px-3 py-3 text-left font-semibold">Sucursal</th>
                   <th className="border-r border-lime-400 px-3 py-3 text-left font-semibold">Area</th>
@@ -81,10 +89,10 @@ export default function ProcesarAsistenciaPage() {
               <tbody>
                 {loading ? (
                   <tr><td colSpan={7} className="border-t border-slate-200 px-4 py-8 text-center text-sm text-slate-500">Cargando personal...</td></tr>
-                ) : filteredRows.length === 0 ? (
+                ) : rows.length === 0 ? (
                   <tr><td colSpan={7} className="border-t border-slate-200 px-4 py-8 text-center text-sm text-slate-500">No se encontraron trabajadores.</td></tr>
                 ) : (
-                  filteredRows.map((item, index) => (
+                  rows.map((item, index) => (
                     <tr key={item.id} className={index % 2 === 0 ? "bg-slate-50/50" : "bg-white"}>
                       <td className="border-t border-r border-slate-200 px-3 py-3 text-center"><input type="checkbox" checked={!!selected[item.id]} onChange={(e) => setSelected((prev) => ({ ...prev, [item.id]: e.target.checked }))} aria-label={`Seleccionar ${item.nombres_completos}`} /></td>
                       <td className="border-t border-r border-slate-200 px-3 py-3 text-slate-700">{empresaMap[item.empresa] || "-"}</td>
@@ -101,8 +109,11 @@ export default function ProcesarAsistenciaPage() {
           </div>
         </div>
 
-        <p className="px-1 text-sm font-semibold text-slate-700">Registros: {filteredRows.length}</p>
-      </div>
-    </section>
+        <div className="flex items-center justify-between">
+          <p className="px-1 text-sm font-semibold text-slate-700">
+            {initialLoading ? "Cargando..." : isFetching ? "Actualizando..." : `Registros: ${totalItems} | Seleccionados: ${selectedIds.length}`}
+          </p>
+        </div>
+    </>
   )
 }

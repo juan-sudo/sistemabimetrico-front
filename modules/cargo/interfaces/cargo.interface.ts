@@ -16,3 +16,10 @@ export type CargoPayload = {
   descripcion: string
   activo: boolean
 }
+
+export type CargoListResponse = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: Cargo[]
+}

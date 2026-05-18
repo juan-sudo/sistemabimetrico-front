@@ -1,9 +1,9 @@
 "use client"
 
-import { FormEvent, useEffect, useMemo, useState } from "react"
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import useUserStore from "@/stores/useUserStore"
-import type { Area, Bloque, FormState, Personal, PersonalTurno, Sucursal, Turno } from "../interfaces/horario-personal.interface"
+import type { FormState, Personal, PersonalTurno, Turno } from "../interfaces/horario-personal.interface"
 import {
   createPersonalTurno,
   deletePersonalTurno,
@@ -11,109 +11,79 @@ import {
   fetchPersonalTurnosPage,
   updatePersonalTurno,
 } from "../services/horario-personal.service"
-import { asArray, buildBloquesByTurno, buildHorarioRows, emptyForm } from "../utils/horario-personal.utils"
-
-type PaginatedResponse<T> = {
-  count: number
-  results: T[]
-}
+import { buildHorarioRows, emptyForm, getTurnoBlocks } from "../utils/horario-personal.utils"
 
 const PAGE_SIZE = 25
+const SEARCH_DEBOUNCE_MS = 350
 
 export function useHorarioPersonalPage() {
   const token = useUserStore((s) => s.accessToken)
   const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
   const [saving, setSaving] = useState(false)
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [page, setPage] = useState(1)
   const [totalItems, setTotalItems] = useState(0)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [personales, setPersonales] = useState<Personal[]>([])
   const [turnos, setTurnos] = useState<Turno[]>([])
-  const [bloques, setBloques] = useState<Bloque[]>([])
-  const [areas, setAreas] = useState<Area[]>([])
-  const [sucursales, setSucursales] = useState<Sucursal[]>([])
   const [asignaciones, setAsignaciones] = useState<PersonalTurno[]>([])
   const [form, setForm] = useState<FormState>(emptyForm)
 
   useEffect(() => {
-    setPage(1)
+    const timeoutId = window.setTimeout(() => {
+      setPage(1)
+      setDebouncedSearch(search.trim())
+    }, SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timeoutId)
   }, [search])
 
-  const loadCatalogs = async () => {
+  const loadCatalogs = useCallback(async () => {
     if (!token) return
-    const [p, t, b, a, s] = await fetchHorarioPersonalCatalogs(token)
-    setPersonales(asArray(p) as Personal[])
-    setTurnos(asArray(t) as Turno[])
-    setBloques(asArray(b) as Bloque[])
-    setAreas(asArray(a) as Area[])
-    setSucursales(asArray(s) as Sucursal[])
-  }
+    const [p, t] = await fetchHorarioPersonalCatalogs(token)
+    setPersonales(p)
+    setTurnos(t)
+  }, [token])
 
-  const loadRows = async () => {
+  const loadRows = useCallback(async () => {
     if (!token) return
-    const response = (await fetchPersonalTurnosPage(token, {
+    const response = await fetchPersonalTurnosPage(token, {
       page,
       pageSize: PAGE_SIZE,
-      search,
-    })) as PaginatedResponse<PersonalTurno> | PersonalTurno[]
-
-    if (Array.isArray(response)) {
-      setAsignaciones(response)
-      setTotalItems(response.length)
-      return
-    }
-
-    setAsignaciones(Array.isArray(response.results) ? response.results : [])
-    setTotalItems(typeof response.count === "number" ? response.count : 0)
-  }
+      search: debouncedSearch,
+    })
+    setAsignaciones(response.results)
+    setTotalItems(response.count)
+  }, [debouncedSearch, page, token])
 
   useEffect(() => {
     const run = async () => {
       if (!token) {
         setLoading(false)
+        setInitialLoading(false)
         return
       }
       try {
         setLoading(true)
-        await loadCatalogs()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "No se pudo cargar catalogos de horario")
-      } finally {
-        setLoading(false)
-      }
-    }
-    void run()
-  }, [token])
-
-  useEffect(() => {
-    const run = async () => {
-      if (!token) return
-      try {
-        setLoading(true)
-        await loadRows()
+        setIsFetching(true)
+        await Promise.all([loadCatalogs(), loadRows()])
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "No se pudo cargar horarios por personal")
       } finally {
         setLoading(false)
+        setInitialLoading(false)
+        setIsFetching(false)
       }
     }
     void run()
-  }, [token, page, search])
+  }, [token, loadCatalogs, loadRows])
 
-  const bloquesByTurno = useMemo(() => buildBloquesByTurno(bloques), [bloques])
+  const rows = useMemo(() => buildHorarioRows(asignaciones), [asignaciones])
 
-  const rows = useMemo(
-    () => buildHorarioRows({ asignaciones, personales, turnos, bloquesByTurno, areas, sucursales }),
-    [asignaciones, personales, turnos, bloquesByTurno, areas, sucursales]
-  )
-
-  const selectedTurnoBlocks = useMemo(() => {
-    const turnoId = Number(form.turno)
-    if (!turnoId) return []
-    return bloquesByTurno[turnoId] || []
-  }, [form.turno, bloquesByTurno])
+  const selectedTurnoBlocks = useMemo(() => getTurnoBlocks(form.turno, turnos), [form.turno, turnos])
 
   const resetForm = () => {
     setEditingId(null)
@@ -185,6 +155,8 @@ export function useHorarioPersonalPage() {
   return {
     token,
     loading,
+    initialLoading,
+    isFetching,
     saving,
     open,
     setOpen,
@@ -209,3 +181,4 @@ export function useHorarioPersonalPage() {
     onDelete,
   }
 }
+

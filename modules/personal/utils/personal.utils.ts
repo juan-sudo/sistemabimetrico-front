@@ -12,7 +12,7 @@ export const emptyForm = (): FormState => ({
   empresa: "",
   sucursal: "",
   area: "",
-  ubicacion: "",
+  direccion: "",
   tipo_documento: "",
   tipo_trabajador: "",
   categoria: "",
@@ -66,11 +66,10 @@ export function buildResetFormState(params: {
   empresas: Catalog[]
   sucursales: Catalog[]
   areas: Catalog[]
-  tiposDoc: Catalog[]
   tiposTrab: Catalog[]
   categorias: Catalog[]
 }): FormState {
-  const { empresas, sucursales, areas, tiposDoc, tiposTrab, categorias } = params
+  const { empresas, sucursales, areas, tiposTrab, categorias } = params
 
   const empresa = empresas[0] ? String(empresas[0].id) : ""
   const sucursal = sucursales.find((item) => String(item.empresa) === empresa)
@@ -81,7 +80,6 @@ export function buildResetFormState(params: {
     empresa,
     sucursal: sucursal ? String(sucursal.id) : "",
     area: area ? String(area.id) : "",
-    tipo_documento: String(tiposDoc[0]?.id || ""),
     tipo_trabajador: String(tiposTrab[0]?.id || ""),
     categoria: String(categorias[0]?.id || ""),
   }

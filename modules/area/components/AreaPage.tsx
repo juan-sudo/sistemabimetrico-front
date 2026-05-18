@@ -2,6 +2,7 @@
 
 import AreaFilters from "./AreaFilters"
 import AreaHeader from "./AreaHeader"
+import { AreaPageSkeleton } from "./AreaPageSkeleton"
 import AreaTable from "./AreaTable"
 import useAreaModule from "../hooks/useAreaModule"
 
@@ -9,6 +10,8 @@ export default function AreaPage() {
   const {
     token,
     loading,
+    initialLoading,
+    isFetching,
     saving,
     open,
     editingId,
@@ -18,6 +21,14 @@ export default function AreaPage() {
     areaById,
     empresaId,
     sucursalId,
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalItems,
+    totalPages,
+    canPrev,
+    canNext,
     form,
     parentsDisponibles,
     setForm,
@@ -33,8 +44,7 @@ export default function AreaPage() {
   if (!token) return <section className="p-6 text-sm text-slate-600">Inicia sesion para continuar.</section>
 
   return (
-    <section className="min-h-[calc(100vh-7rem)] bg-[radial-gradient(circle_at_top_right,#dcfce7_0%,#f8fafc_45%,#eef2ff_100%)] p-3 md:p-6">
-      <div className="mx-auto w-full max-w-6xl space-y-5">
+    <>
         <AreaHeader
           open={open}
           editingId={editingId}
@@ -53,14 +63,48 @@ export default function AreaPage() {
         <AreaFilters
           empresaId={empresaId}
           sucursalId={sucursalId}
+          search={search}
           empresas={empresas}
           sucursales={sucursalesFiltradas}
+          onSearchChange={setSearch}
           onEmpresaChange={onEmpresaChange}
           onSucursalChange={setSucursalId}
         />
 
-        <AreaTable loading={loading} areas={areasFiltradas} areaById={areaById} onEdit={onEdit} onDelete={onDelete} />
-      </div>
-    </section>
+        <p className="px-1 text-sm font-semibold text-slate-600">
+          {isFetching ? "Actualizando..." : `Registros: ${totalItems}`}
+        </p>
+
+        {initialLoading ? (
+          <AreaPageSkeleton />
+        ) : (
+          <>
+            <AreaTable loading={loading} areas={areasFiltradas} areaById={areaById} onEdit={onEdit} onDelete={onDelete} />
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <p className="text-sm text-slate-600">
+                Pagina {page} de {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={!canPrev || loading}
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setPage((prev) => prev + 1)}
+                  disabled={!canNext || loading}
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+    </>
   )
 }

@@ -41,20 +41,8 @@ export default function UsuarioPage() {
   if (!token) return <section className="p-6 text-sm text-slate-600">Inicia sesion para continuar.</section>
 
   return (
-    <section className="min-h-[calc(100vh-7rem)] bg-[radial-gradient(circle_at_top_right,#dcfce7_0%,#f8fafc_45%,#eef2ff_100%)] p-3 md:p-6">
-      <div className="mx-auto w-full max-w-7xl space-y-5">
-        <header className="rounded-2xl border border-white/50 bg-white/80 p-5 shadow-lg backdrop-blur md:p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-700">
-                <ShieldCheck size={22} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-slate-800 md:text-3xl">Usuarios y permisos</h1>
-                <p className="text-sm text-slate-500">Administra accesos, activacion y permisos por modulo para cada usuario.</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
+    <>
+      <div className="flex flex-wrap justify-end gap-2 rounded-2xl border border-white/50 bg-white/80 px-5 py-3 shadow-sm backdrop-blur">
               <Button type="button" variant="outline" className="border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50" onClick={onExport}>
                 <Download size={16} className="mr-2" />
                 Reporte
@@ -149,8 +137,6 @@ export default function UsuarioPage() {
                 </DialogContent>
               </Dialog>
             </div>
-          </div>
-        </header>
 
         <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-4">
           <Input
@@ -276,8 +262,7 @@ export default function UsuarioPage() {
             <DialogFooter><Button onClick={() => setDetail(null)}>Cerrar</Button></DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </section>
+    </>
   )
 }
 

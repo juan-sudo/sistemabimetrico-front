@@ -1,113 +1,172 @@
-﻿"use client"
+"use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import useUserStore from "@/stores/useUserStore"
 import type { Area, Justificacion, JustificacionForm, Personal, Sucursal } from "../interfaces/justificacion.interface"
-import { createJustificacion, fetchJustificacionData } from "../services/justificacion.service"
-import { asArray, defaultForm } from "../utils/justificacion.utils"
+import {
+  createJustificacion,
+  fetchJustificacionCatalogs,
+  fetchJustificaciones,
+  fetchPersonalesForModal,
+} from "../services/justificacion.service"
+import { defaultForm } from "../utils/justificacion.utils"
+
+const SEARCH_DEBOUNCE_MS = 350
 
 export function useJustificacionPage() {
   const token = useUserStore((s) => s.accessToken)
   const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
   const [saving, setSaving] = useState(false)
   const [openCrear, setOpenCrear] = useState(false)
   const [busquedaGeneral, setBusquedaGeneral] = useState("")
+  const [debouncedBusquedaGeneral, setDebouncedBusquedaGeneral] = useState("")
   const [filtroMotivo, setFiltroMotivo] = useState("")
+  const [debouncedFiltroMotivo, setDebouncedFiltroMotivo] = useState("")
   const [filtroFecha, setFiltroFecha] = useState("")
   const [sucursalId, setSucursalId] = useState("")
   const [areaId, setAreaId] = useState("")
   const [busquedaEmpleado, setBusquedaEmpleado] = useState("")
+  const [debouncedBusquedaEmpleado, setDebouncedBusquedaEmpleado] = useState("")
   const [selectedPersonalId, setSelectedPersonalId] = useState<number | null>(null)
   const [form, setForm] = useState<JustificacionForm>(defaultForm)
-  const [personales, setPersonales] = useState<Personal[]>([])
+  const [empleadosFiltrados, setEmpleadosFiltrados] = useState<Personal[]>([])
   const [sucursales, setSucursales] = useState<Sucursal[]>([])
   const [areas, setAreas] = useState<Area[]>([])
   const [justificaciones, setJustificaciones] = useState<Justificacion[]>([])
   const [detailRow, setDetailRow] = useState<Justificacion | null>(null)
+  const justificacionesRequestIdRef = useRef(0)
 
-  const loadData = async () => {
-    if (!token) return
-    const [p, s, a, j] = await fetchJustificacionData(token)
-    const pList = asArray(p) as Personal[]
-    const sList = asArray(s) as Sucursal[]
-    const aList = asArray(a) as Area[]
-    const jList = asArray(j) as Justificacion[]
-    setPersonales(pList)
-    setSucursales(sList)
-    setAreas(aList)
-    setJustificaciones(jList)
-    if (!sucursalId && sList[0]) setSucursalId(String(sList[0].id))
-    if (!areaId && aList[0]) setAreaId(String(aList[0].id))
-  }
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedBusquedaGeneral(busquedaGeneral.trim())
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [busquedaGeneral])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedFiltroMotivo(filtroMotivo.trim())
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [filtroMotivo])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedBusquedaEmpleado(busquedaEmpleado.trim())
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [busquedaEmpleado])
 
   useEffect(() => {
     const run = async () => {
       if (!token) {
         setLoading(false)
+        setInitialLoading(false)
         return
       }
       try {
-        setLoading(true)
-        await loadData()
+        const [sList, aList] = await fetchJustificacionCatalogs(token)
+        setSucursales(sList)
+        setAreas(aList)
+        if (!sucursalId && sList[0]) setSucursalId(String(sList[0].id))
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "No se pudo cargar justificaciones")
+        toast.error(err instanceof Error ? err.message : "No se pudo cargar catalogos")
       } finally {
-        setLoading(false)
+        setInitialLoading(false)
       }
     }
     void run()
-  }, [token])
+  }, [token, sucursalId])
+
+  useEffect(() => {
+    const run = async () => {
+      if (!token) return
+
+      const requestId = justificacionesRequestIdRef.current + 1
+      justificacionesRequestIdRef.current = requestId
+
+      try {
+        setLoading(true)
+        setIsFetching(true)
+        const rows = await fetchJustificaciones(token, {
+          sucursalId,
+          areaId,
+          filtroMotivo: debouncedFiltroMotivo,
+          filtroFecha,
+          busquedaGeneral: debouncedBusquedaGeneral,
+        })
+        if (justificacionesRequestIdRef.current !== requestId) return
+        setJustificaciones(rows)
+      } catch (err) {
+        if (justificacionesRequestIdRef.current !== requestId) return
+        toast.error(err instanceof Error ? err.message : "No se pudo cargar justificaciones")
+      } finally {
+        if (justificacionesRequestIdRef.current === requestId) {
+          setLoading(false)
+          setIsFetching(false)
+        }
+      }
+    }
+    void run()
+  }, [token, sucursalId, areaId, filtroFecha, debouncedFiltroMotivo, debouncedBusquedaGeneral])
+
+  useEffect(() => {
+    if (!token || !openCrear) return
+
+    const run = async () => {
+      try {
+        const rows = await fetchPersonalesForModal(token, {
+          sucursalId,
+          search: debouncedBusquedaEmpleado,
+        })
+        setEmpleadosFiltrados(rows)
+
+        if (selectedPersonalId && !rows.some((item) => item.id === selectedPersonalId)) {
+          setSelectedPersonalId(null)
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo cargar personal")
+      }
+    }
+    void run()
+  }, [token, openCrear, sucursalId, debouncedBusquedaEmpleado, selectedPersonalId])
 
   const sucursalMap = useMemo(() => Object.fromEntries(sucursales.map((x) => [x.id, x.nombre])), [sucursales])
   const areaMap = useMemo(() => Object.fromEntries(areas.map((x) => [x.id, x.nombre])), [areas])
-  const personalMap = useMemo(() => Object.fromEntries(personales.map((x) => [x.id, x])), [personales])
+  const personalMap = useMemo(() => Object.fromEntries(empleadosFiltrados.map((x) => [x.id, x])), [empleadosFiltrados])
 
   const areasFiltradas = useMemo(() => {
     if (!sucursalId) return areas
     return areas.filter((x) => x.sucursal === Number(sucursalId))
   }, [areas, sucursalId])
 
-  const empleadosFiltrados = useMemo(() => {
-    const q = busquedaEmpleado.trim().toLowerCase()
-    const base = personales.filter((p) => !sucursalId || p.sucursal === Number(sucursalId))
-    if (!q) return base
-    return base.filter((p) => `${p.nombres_completos} ${p.numero_documento}`.toLowerCase().includes(q))
-  }, [personales, busquedaEmpleado, sucursalId])
-
-  const justificacionesFiltradas = useMemo(() => {
-    return justificaciones.filter((j) => {
-      const p = personalMap[j.personal]
-      if (!p) return false
-      if (sucursalId && j.sucursal !== Number(sucursalId)) return false
-      if (areaId && j.area !== Number(areaId)) return false
-      if (filtroMotivo && !j.motivo.toLowerCase().includes(filtroMotivo.toLowerCase())) return false
-      if (filtroFecha && j.fecha_inicio !== filtroFecha) return false
-      if (busquedaGeneral) {
-        const t = busquedaGeneral.toLowerCase()
-        const ok = `${p.nombres_completos} ${p.numero_documento} ${areaMap[j.area] || ""}`.toLowerCase().includes(t)
-        if (!ok) return false
-      }
-      return true
-    })
-  }, [justificaciones, personalMap, sucursalId, areaId, filtroMotivo, filtroFecha, busquedaGeneral, areaMap])
+  const justificacionesFiltradas = justificaciones
 
   const exportRows = useMemo(
     () =>
-      justificacionesFiltradas.map((j) => {
-        const p = personalMap[j.personal]
-        return {
-          nombres: p?.nombres_completos || "-",
-          dni: p?.numero_documento || "-",
-          motivo: j.motivo,
-          tipo: j.tipo,
-          fechaInicio: j.fecha_inicio,
-          fechaFin: j.fecha_fin,
-          dias: j.dias,
-          nombreDoc: j.nombre_documento || "-",
-          estado: j.estado,
-        }
-      }),
+      justificacionesFiltradas.map((j) => ({
+        nombres: j.personal_nombres_completos || personalMap[j.personal]?.nombres_completos || "-",
+        dni: j.personal_numero_documento || personalMap[j.personal]?.numero_documento || "-",
+        motivo: j.motivo,
+        tipo: j.tipo,
+        fechaInicio: j.fecha_inicio,
+        fechaFin: j.fecha_fin,
+        dias: j.dias,
+        nombreDoc: j.nombre_documento || "-",
+        estado: j.estado,
+      })),
     [justificacionesFiltradas, personalMap]
   )
 
@@ -164,7 +223,16 @@ export function useJustificacionPage() {
         estado: "PENDIENTE",
         motivo_no_autorizacion: "",
       })
-      await loadData()
+
+      const rows = await fetchJustificaciones(token, {
+        sucursalId,
+        areaId,
+        filtroMotivo: debouncedFiltroMotivo,
+        filtroFecha,
+        busquedaGeneral: debouncedBusquedaGeneral,
+      })
+      setJustificaciones(rows)
+
       setOpenCrear(false)
       setSelectedPersonalId(null)
       setForm(defaultForm)
@@ -178,7 +246,8 @@ export function useJustificacionPage() {
 
   return {
     token,
-    loading,
+    loading: loading || initialLoading,
+    isFetching,
     saving,
     openCrear,
     setOpenCrear,
@@ -198,7 +267,6 @@ export function useJustificacionPage() {
     setSelectedPersonalId,
     form,
     setForm,
-    personales,
     sucursales,
     areas,
     detailRow,
